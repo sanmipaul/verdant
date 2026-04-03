@@ -1,0 +1,16 @@
+build.md
+
+# Foundry
+out/
+cache/
+broadcast/
+.env
+
+# Node
+node_modules/
+.next/
+dist/
+
+# Misc
+.DS_Store
+*.log
