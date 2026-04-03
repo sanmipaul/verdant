@@ -1,0 +1,32 @@
+name = "verdant-agent"
+main = "src/index.ts"
+compatibility_date = "2025-01-01"
+compatibility_flags = ["nodejs_compat"]
+
+[[durable_objects.bindings]]
+name = "WEATHER_MONITOR"
+class_name = "WeatherMonitorAgent"
+
+[[durable_objects.bindings]]
+name = "POLICY_EVALUATOR"
+class_name = "PolicyEvaluatorAgent"
+
+[[durable_objects.bindings]]
+name = "PAYOUT_EXECUTOR"
+class_name = "PayoutExecutorAgent"
+
+[[migrations]]
+tag = "v1"
+new_classes = ["WeatherMonitorAgent", "PolicyEvaluatorAgent", "PayoutExecutorAgent"]
+
+[vars]
+OPEN_METEO_BASE_URL = "https://api.open-meteo.com/v1"
+NASA_POWER_BASE_URL = "https://power.larc.nasa.gov/api"
+
+# Secrets (set via wrangler secret put):
+# CELO_PRIVATE_KEY
+# CLOUDFLARE_AI_GATEWAY_URL
+# CLAUDE_API_KEY
+# POLICY_REGISTRY_ADDRESS
+# PAYOUT_VAULT_ADDRESS
+# CELO_RPC_URL
