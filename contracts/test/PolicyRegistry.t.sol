@@ -1,0 +1,154 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.20;
+
+import {Test, console} from "forge-std/Test.sol";
+import {PolicyRegistry} from "../src/PolicyRegistry.sol";
+import {PremiumPool} from "../src/PremiumPool.sol";
+import {MockERC20} from "./mocks/MockERC20.sol";
+
+contract PolicyRegistryTest is Test {
+    PolicyRegistry public registry;
+    PremiumPool public pool;
+    MockERC20 public cUSD;
+
+    address public owner = makeAddr("owner");
+    address public agent = makeAddr("agent");
+    address public farmer = makeAddr("farmer");
+
+    // Nairobi coordinates × 1e6
+    int256 constant LAT = -1292100;
+    int256 constant LNG = 36821800;
+
+    uint256 constant COVERAGE = 20e18; // 20 cUSD
+    uint40 constant DURATION = 30 days;
+
+    function setUp() public {
+        cUSD = new MockERC20("Celo Dollar", "cUSD", 18);
+        pool = new PremiumPool(address(cUSD), owner);
+        registry = new PolicyRegistry(address(cUSD), address(pool), owner);
+
+        vm.prank(owner);
+        registry.setAuthorizedAgent(agent);
+
+        // Fund farmer
+        cUSD.mint(farmer, 100e18);
+    }
+
+    function test_RegisterPolicy() public {
+        uint256 premium = registry.calculatePremium(COVERAGE);
+        uint40 endDate = uint40(block.timestamp + DURATION);
+
+        vm.startPrank(farmer);
+        cUSD.approve(address(registry), premium);
+
+        bytes32 policyId = registry.registerPolicy(
+            LAT, LNG, PolicyRegistry.CoverageType.DROUGHT, COVERAGE, endDate
+        );
+        vm.stopPrank();
+
+        PolicyRegistry.Policy memory p = registry.getPolicy(policyId);
+        assertEq(p.farmer, farmer);
+        assertEq(p.coverageAmount, COVERAGE);
+        assertEq(uint8(p.status), uint8(PolicyRegistry.PolicyStatus.ACTIVE));
+        assertEq(p.lat, LAT);
+        assertEq(p.lng, LNG);
+    }
+
+    function test_PremiumFlowsToPremiumPool() public {
+        uint256 premium = registry.calculatePremium(COVERAGE);
+        uint40 endDate = uint40(block.timestamp + DURATION);
+
+        vm.startPrank(farmer);
+        cUSD.approve(address(registry), premium);
+        registry.registerPolicy(LAT, LNG, PolicyRegistry.CoverageType.FLOOD, COVERAGE, endDate);
+        vm.stopPrank();
+
+        assertEq(cUSD.balanceOf(address(pool)), premium);
+    }
+
+    function test_MinimumPremium() public {
+        // Coverage of 10 cUSD → 1% = 0.10 cUSD, below min → should charge 0.50 cUSD
+        uint256 lowCoverage = 10e18;
+        uint256 premium = registry.calculatePremium(lowCoverage);
+        assertEq(premium, 0.5e18);
+    }
+
+    function test_MarkClaimed_OnlyAgent() public {
+        bytes32 policyId = _registerPolicy();
+
+        vm.expectRevert(PolicyRegistry.Unauthorized.selector);
+        vm.prank(farmer);
+        registry.markClaimed(policyId);
+    }
+
+    function test_MarkClaimed_Success() public {
+        bytes32 policyId = _registerPolicy();
+
+        vm.prank(agent);
+        registry.markClaimed(policyId);
+
+        PolicyRegistry.Policy memory p = registry.getPolicy(policyId);
+        assertEq(uint8(p.status), uint8(PolicyRegistry.PolicyStatus.CLAIMED));
+    }
+
+    function test_CannotClaimTwice() public {
+        bytes32 policyId = _registerPolicy();
+
+        vm.prank(agent);
+        registry.markClaimed(policyId);
+
+        vm.expectRevert(PolicyRegistry.PolicyNotActive.selector);
+        vm.prank(agent);
+        registry.markClaimed(policyId);
+    }
+
+    function test_CannotRegisterWithZeroCoverage() public {
+        vm.prank(farmer);
+        vm.expectRevert(PolicyRegistry.InvalidCoverage.selector);
+        registry.registerPolicy(LAT, LNG, PolicyRegistry.CoverageType.DROUGHT, 0, uint40(block.timestamp + 1 days));
+    }
+
+    function test_CannotRegisterExceedingMaxCoverage() public {
+        vm.prank(farmer);
+        vm.expectRevert(PolicyRegistry.InvalidCoverage.selector);
+        registry.registerPolicy(LAT, LNG, PolicyRegistry.CoverageType.DROUGHT, 51e18, uint40(block.timestamp + 1 days));
+    }
+
+    function test_ExpirePolicy() public {
+        bytes32 policyId = _registerPolicy();
+
+        // Warp past end date
+        vm.warp(block.timestamp + DURATION + 1);
+        registry.expirePolicy(policyId);
+
+        PolicyRegistry.Policy memory p = registry.getPolicy(policyId);
+        assertEq(uint8(p.status), uint8(PolicyRegistry.PolicyStatus.EXPIRED));
+    }
+
+    function test_GetFarmerPolicies() public {
+        bytes32 id1 = _registerPolicy();
+        // Register second policy with different coverage type
+        uint256 premium = registry.calculatePremium(COVERAGE);
+        vm.startPrank(farmer);
+        cUSD.approve(address(registry), premium);
+        bytes32 id2 = registry.registerPolicy(LAT, LNG, PolicyRegistry.CoverageType.FLOOD, COVERAGE, uint40(block.timestamp + DURATION));
+        vm.stopPrank();
+
+        bytes32[] memory farmerPolicies = registry.getFarmerPolicies(farmer);
+        assertEq(farmerPolicies.length, 2);
+        assertEq(farmerPolicies[0], id1);
+        assertEq(farmerPolicies[1], id2);
+    }
+
+    // --- helpers ---
+
+    function _registerPolicy() internal returns (bytes32 policyId) {
+        uint256 premium = registry.calculatePremium(COVERAGE);
+        vm.startPrank(farmer);
+        cUSD.approve(address(registry), premium);
+        policyId = registry.registerPolicy(
+            LAT, LNG, PolicyRegistry.CoverageType.DROUGHT, COVERAGE, uint40(block.timestamp + DURATION)
+        );
+        vm.stopPrank();
+    }
+}
