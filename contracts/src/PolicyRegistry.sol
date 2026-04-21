@@ -7,7 +7,7 @@ import {PremiumPool} from "./PremiumPool.sol";
 /// @title PolicyRegistry
 /// @notice Stores all crop insurance policies. Farmers register plots here,
 ///         pay premiums, and policies are tracked through their lifecycle.
-/// @dev Feature: Policies can auto-expire based on endDate.
+/// @dev Feature: Policies can auto-expire based on endDate. Added expire functions, checks, and views.
 contract PolicyRegistry {
     enum CoverageType {
         DROUGHT,
