@@ -79,7 +79,7 @@ export function RegisterPolicyForm({ onSuccess }: Props) {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!premiumWei || !latDeg || !lngDeg) return;
+    if (!validateForm() || !premiumWei) return;
     setError("");
 
     const latScaled = BigInt(Math.round(parseFloat(latDeg) * 1e6));
