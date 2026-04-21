@@ -189,6 +189,8 @@ contract PolicyRegistryTest is Test {
         assertEq(active[0], id2);
     }
 
+    // Additional test for edge case
+
     function test_GetFarmerPolicies() public {
         bytes32 id1 = _registerPolicy();
         // Register second policy with different coverage type
