@@ -151,6 +151,8 @@ contract WeatherOracle {
 
     /// @notice Record agent heartbeat for monitoring system health.
     function recordHeartbeat(uint256 eventsRecordedToday) external onlyAgent {
+        lastHeartbeatTimestamp = block.timestamp;
+        eventsToday = eventsRecordedToday;
         emit AgentHeartbeat(uint40(block.timestamp), eventsRecordedToday);
     }
 
