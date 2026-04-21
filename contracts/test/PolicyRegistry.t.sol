@@ -6,6 +6,7 @@ import {PolicyRegistry} from "../src/PolicyRegistry.sol";
 import {PremiumPool} from "../src/PremiumPool.sol";
 import {MockERC20} from "./mocks/MockERC20.sol";
 
+/// @dev Tests for PolicyRegistry, including expiration features.
 contract PolicyRegistryTest is Test {
     PolicyRegistry public registry;
     PremiumPool public pool;
