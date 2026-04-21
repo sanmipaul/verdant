@@ -145,7 +145,8 @@ contract PolicyRegistry {
     function markClaimed(bytes32 policyId) external onlyAgent {
         Policy storage p = policies[policyId];
         if (p.status != PolicyStatus.ACTIVE) revert PolicyNotActive();
-        if (block.timestamp > p.endDate) revert PolicyNotActive();
+        uint40 currentTime = uint40(block.timestamp);
+        if (currentTime > p.endDate) revert PolicyNotActive();
 
         p.status = PolicyStatus.CLAIMED;
 
