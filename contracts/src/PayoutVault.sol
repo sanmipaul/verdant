@@ -57,9 +57,11 @@ contract PayoutVault {
 
         payoutExecuted[policyId] = true;
 
-        pool.withdrawForPayout(p.coverageAmount, p.farmer);
+        uint256 amount = p.coverageAmount;
 
-        emit PayoutExecuted(policyId, p.farmer, p.coverageAmount);
+        pool.withdrawForPayout(amount, p.farmer);
+
+        emit PayoutExecuted(policyId, p.farmer, amount);
     }
 
     /// @notice Batch payout for multiple triggered policies in a single transaction.
