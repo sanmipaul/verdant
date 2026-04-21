@@ -54,6 +54,24 @@ contract PremiumPool {
         emit Deposited(msg.sender, amount);
     }
 
+    /// @notice Batch deposit multiple amounts (gas optimized).
+    function batchDeposit(uint256[] calldata amounts) external {
+        uint256 totalAmount;
+        uint256 length = amounts.length;
+
+        for (uint256 i = 0; i < length; ) {
+            uint256 amount = amounts[i];
+            if (amount == 0) revert ZeroAmount();
+            totalAmount += amount;
+            unchecked { i++; }
+        }
+
+        if (totalAmount == 0) revert ZeroAmount();
+        totalDeposited += totalAmount;
+        cUSD.transferFrom(msg.sender, address(this), totalAmount);
+        emit Deposited(msg.sender, totalAmount);
+    }
+
     /// @notice Called by PayoutVault to withdraw funds for a payout.
     function withdrawForPayout(uint256 amount, address recipient) external onlyVault {
         if (amount == 0) revert ZeroAmount();
