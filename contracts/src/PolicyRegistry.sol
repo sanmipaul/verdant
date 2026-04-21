@@ -231,4 +231,10 @@ contract PolicyRegistry {
 
         return activePolicies;
     }
+
+    /// @notice Check if a policy is expired (gas optimized view).
+    function isPolicyExpired(bytes32 policyId) external view returns (bool) {
+        Policy storage p = policies[policyId];
+        return p.status == PolicyStatus.ACTIVE && uint40(block.timestamp) > p.endDate;
+    }
 }
