@@ -65,22 +65,25 @@ contract PayoutVault {
     function batchPayout(bytes32[] calldata policyIds) external onlyAgent {
         uint256 count;
         uint256 totalAmount;
+        uint256 length = policyIds.length;
 
-        for (uint256 i = 0; i < policyIds.length; i++) {
+        for (uint256 i = 0; i < length; ) {
             bytes32 policyId = policyIds[i];
 
-            if (payoutExecuted[policyId]) continue;
+            if (!payoutExecuted[policyId]) {
+                PolicyRegistry.Policy memory p = registry.getPolicy(policyId);
+                if (p.status == PolicyRegistry.PolicyStatus.CLAIMED) {
+                    payoutExecuted[policyId] = true;
+                    totalAmount += p.coverageAmount;
+                    count++;
 
-            PolicyRegistry.Policy memory p = registry.getPolicy(policyId);
-            if (p.status != PolicyRegistry.PolicyStatus.CLAIMED) continue;
+                    pool.withdrawForPayout(p.coverageAmount, p.farmer);
 
-            payoutExecuted[policyId] = true;
-            totalAmount += p.coverageAmount;
-            count++;
+                    emit PayoutExecuted(policyId, p.farmer, p.coverageAmount);
+                }
+            }
 
-            pool.withdrawForPayout(p.coverageAmount, p.farmer);
-
-            emit PayoutExecuted(policyId, p.farmer, p.coverageAmount);
+            unchecked { i++; }
         }
 
         if (count > 0) {
