@@ -39,6 +39,14 @@ contract WeatherOracle {
     // region hash => list of event IDs (region = keccak256(lat, lng, 50km grid))
     mapping(bytes32 => bytes32[]) public regionEvents;
 
+    // Logging statistics
+    uint256 public totalEventsRecorded;
+    uint256 public totalApiCalls;
+    uint256 public lastHeartbeatTimestamp;
+    uint256 public eventsToday;
+    uint256 public totalApiFailures;
+    uint256 public totalSystemAlerts;
+
     event WeatherEventRecorded(
         bytes32 indexed eventId,
         bytes32 indexed regionHash,
@@ -46,6 +54,49 @@ contract WeatherOracle {
         int256 value,
         uint40 timestamp,
         uint256 sourceCount
+    );
+
+    event ApiDataReceived(
+        string indexed source,
+        int256 lat,
+        int256 lng,
+        int256 temperature,
+        int256 rainfall,
+        uint40 timestamp
+    );
+
+    event ConsensusCalculated(
+        bytes32 indexed eventId,
+        uint256 sourcesUsed,
+        int256 finalTemperature,
+        int256 finalRainfall,
+        uint40 timestamp
+    );
+
+    event EventThresholdTriggered(
+        bytes32 indexed eventId,
+        EventType eventType,
+        int256 value,
+        int256 threshold
+    );
+
+    event AgentHeartbeat(
+        uint40 timestamp,
+        uint256 eventsRecordedToday
+    );
+
+    event ApiFailure(
+        string indexed source,
+        int256 lat,
+        int256 lng,
+        string reason,
+        uint40 timestamp
+    );
+
+    event SystemAlert(
+        string alertType,
+        string message,
+        uint40 timestamp
     );
 
     error Unauthorized();
@@ -94,6 +145,101 @@ contract WeatherOracle {
         regionEvents[regionHash].push(eventId);
 
         emit WeatherEventRecorded(eventId, regionHash, eventType, consensusValue, timestamp, apiData.length);
+    }
+
+    /// @notice Record raw API data for logging purposes. Called by agent before consensus.
+    /// @param source The API source name (e.g., "open-meteo")
+    /// @param lat Latitude scaled by 1e6
+    /// @param lng Longitude scaled by 1e6
+    /// @param temperature Temperature in °C * 100
+    /// @param rainfall Rainfall in mm * 100
+    /// @param timestamp Unix timestamp
+    function recordApiData(
+        string calldata source,
+        int256 lat,
+        int256 lng,
+        int256 temperature,
+        int256 rainfall,
+        uint40 timestamp
+    ) external onlyAgent {
+        totalApiCalls++;
+        emit ApiDataReceived(source, lat, lng, temperature, rainfall, timestamp);
+    }
+
+    /// @notice Record consensus calculation results for transparency.
+    /// @param eventId The event ID this consensus relates to
+    /// @param sourcesUsed Number of API sources used in consensus
+    /// @param finalTemperature Final consensus temperature
+    /// @param finalRainfall Final consensus rainfall
+    /// @param timestamp Unix timestamp
+    function recordConsensus(
+        bytes32 eventId,
+        uint256 sourcesUsed,
+        int256 finalTemperature,
+        int256 finalRainfall,
+        uint40 timestamp
+    ) external onlyAgent {
+        emit ConsensusCalculated(eventId, sourcesUsed, finalTemperature, finalRainfall, timestamp);
+    }
+
+    /// @notice Record when a weather threshold is triggered for an event.
+    /// @param eventId The event ID that triggered the threshold
+    /// @param eventType The type of weather event
+    /// @param value The measured value that triggered the threshold
+    /// @param threshold The threshold value that was breached
+    function recordThresholdTrigger(
+        bytes32 eventId,
+        EventType eventType,
+        int256 value,
+        int256 threshold
+    ) external onlyAgent {
+        emit EventThresholdTriggered(eventId, eventType, value, threshold);
+    }
+
+    /// @notice Record agent heartbeat for monitoring system health.
+    /// @param eventsRecordedToday Number of events recorded in the current day
+    function recordHeartbeat(uint256 eventsRecordedToday) external onlyAgent {
+        lastHeartbeatTimestamp = block.timestamp;
+        eventsToday = eventsRecordedToday;
+        emit AgentHeartbeat(uint40(block.timestamp), eventsRecordedToday);
+    }
+
+    /// @notice Get comprehensive logging statistics.
+    /// @return totalEvents Total events recorded
+    /// @return totalApiCalls_ Total API calls made
+    /// @return lastHeartbeat Last heartbeat timestamp
+    /// @return eventsToday_ Events recorded today
+    /// @return totalFailures Total API failures
+    /// @return totalAlerts Total system alerts
+    function getLoggingStats() external view returns (
+        uint256 totalEvents,
+        uint256 totalApiCalls_,
+        uint256 lastHeartbeat,
+        uint256 eventsToday_,
+        uint256 totalFailures,
+        uint256 totalAlerts
+    ) {
+        return (totalEventsRecorded, totalApiCalls, lastHeartbeatTimestamp, eventsToday, totalApiFailures, totalSystemAlerts);
+    }
+
+    /// @notice Record API failure for monitoring.
+    function recordApiFailure(
+        string calldata source,
+        int256 lat,
+        int256 lng,
+        string calldata reason
+    ) external onlyAgent {
+        totalApiFailures++;
+        emit ApiFailure(source, lat, lng, reason, uint40(block.timestamp));
+    }
+
+    /// @notice Record system alert for critical issues.
+    function recordSystemAlert(
+        string calldata alertType,
+        string calldata message
+    ) external onlyAgent {
+        totalSystemAlerts++;
+        emit SystemAlert(alertType, message, uint40(block.timestamp));
     }
 
     /// @notice Get a single weather event by ID.
