@@ -23,9 +23,9 @@ contract WeatherOracle {
     }
 
     struct ApiData {
-        string source;
-        int256 value;
-        uint40 timestamp;
+        string source;  // API name, e.g., "open-meteo"
+        int256 value;   // Data value
+        uint40 timestamp; // Data timestamp
     }
 
     address public immutable agent;
