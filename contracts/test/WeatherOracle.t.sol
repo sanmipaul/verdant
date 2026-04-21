@@ -78,6 +78,23 @@ contract WeatherOracleTest is Test {
         assertEq(sources[1].value, 1600);
     }
 
+    function test_IsConsensusReliable() public {
+        WeatherOracle.ApiData[] memory apiData = new WeatherOracle.ApiData[](2);
+        apiData[0] = WeatherOracle.ApiData("open-meteo", 1500, uint40(block.timestamp));
+        apiData[1] = WeatherOracle.ApiData("nasa-power", 1600, uint40(block.timestamp));
+
+        vm.prank(agent);
+        bytes32 eventId = oracle.recordEvent(
+            LAT, LNG,
+            WeatherOracle.EventType.DROUGHT,
+            apiData,
+            uint40(block.timestamp)
+        );
+
+        bool reliable = oracle.isConsensusReliable(eventId, 10000); // threshold
+        assertTrue(reliable); // variance is 2500
+    }
+
     function test_GetRegionEvents() public {
         vm.startPrank(agent);
         oracle.recordEvent(LAT, LNG, WeatherOracle.EventType.DROUGHT, 1500, uint40(block.timestamp), "open-meteo");
