@@ -95,6 +95,20 @@ contract WeatherOracleTest is Test {
         assertTrue(reliable); // variance is 2500
     }
 
+    function test_InsufficientSources() public {
+        WeatherOracle.ApiData[] memory apiData = new WeatherOracle.ApiData[](1);
+        apiData[0] = WeatherOracle.ApiData("open-meteo", 1500, uint40(block.timestamp));
+
+        vm.expectRevert("Insufficient sources");
+        vm.prank(agent);
+        oracle.recordEvent(
+            LAT, LNG,
+            WeatherOracle.EventType.DROUGHT,
+            apiData,
+            uint40(block.timestamp)
+        );
+    }
+
     function test_GetRegionEvents() public {
         vm.startPrank(agent);
         oracle.recordEvent(LAT, LNG, WeatherOracle.EventType.DROUGHT, 1500, uint40(block.timestamp), "open-meteo");
