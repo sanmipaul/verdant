@@ -170,12 +170,14 @@ export function RegisterPolicyForm({ onSuccess }: Props) {
               value={latDeg}
               onChange={(e) => setLatDeg(e.target.value)}
               required
+              aria-label="Farm latitude in degrees"
+              aria-describedby={validationErrors.lat ? "lat-error" : undefined}
               className={`border rounded-xl px-3 py-2.5 text-sm w-full focus:outline-none focus:ring-2 ${
                 validationErrors.lat ? "border-red-300 focus:ring-red-400" : "border-gray-200 focus:ring-verdant-400"
               }`}
             />
             {validationErrors.lat && (
-              <p className="text-red-500 text-xs mt-1">{validationErrors.lat}</p>
+              <p id="lat-error" className="text-red-500 text-xs mt-1">{validationErrors.lat}</p>
             )}
           </div>
           <div>
@@ -184,12 +186,14 @@ export function RegisterPolicyForm({ onSuccess }: Props) {
               value={lngDeg}
               onChange={(e) => setLngDeg(e.target.value)}
               required
+              aria-label="Farm longitude in degrees"
+              aria-describedby={validationErrors.lng ? "lng-error" : undefined}
               className={`border rounded-xl px-3 py-2.5 text-sm w-full focus:outline-none focus:ring-2 ${
                 validationErrors.lng ? "border-red-300 focus:ring-red-400" : "border-gray-200 focus:ring-verdant-400"
               }`}
             />
             {validationErrors.lng && (
-              <p className="text-red-500 text-xs mt-1">{validationErrors.lng}</p>
+              <p id="lng-error" className="text-red-500 text-xs mt-1">{validationErrors.lng}</p>
             )}
           </div>
         </div>
