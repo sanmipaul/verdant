@@ -78,12 +78,13 @@ contract PayoutVault {
             if (p.status != PolicyRegistry.PolicyStatus.CLAIMED) continue;
 
             payoutExecuted[policyId] = true;
-            totalAmount += p.coverageAmount;
+            uint256 amount = p.coverageAmount * p.premiumPaid / 0.5e18;
+            totalAmount += amount;
             count++;
 
-            pool.withdrawForPayout(p.coverageAmount, p.farmer);
+            pool.withdrawForPayout(amount, p.farmer);
 
-            emit PayoutExecuted(policyId, p.farmer, p.coverageAmount);
+            emit PayoutExecuted(policyId, p.farmer, amount);
         }
 
         if (count > 0) {
