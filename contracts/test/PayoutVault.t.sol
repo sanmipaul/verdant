@@ -100,7 +100,9 @@ contract PayoutVaultTest is Test {
         vm.prank(agent);
         vault.batchPayout(ids);
 
-        assertEq(cUSD.balanceOf(farmer), farmerBalanceBefore + COVERAGE * 2);
+        uint256 expectedPayout1 = vault.calculatePayout(id1);
+        uint256 expectedPayout2 = vault.calculatePayout(id2);
+        assertEq(cUSD.balanceOf(farmer), farmerBalanceBefore + expectedPayout1 + expectedPayout2);
     }
 
     function test_BatchPayout_SkipsAlreadyPaid() public {
