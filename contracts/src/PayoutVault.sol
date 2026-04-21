@@ -14,6 +14,9 @@ contract PayoutVault {
     address public immutable owner;
     address public authorizedAgent;
 
+    // Minimum premium: 0.50 cUSD (18 decimals)
+    uint256 public constant MIN_PREMIUM = 0.5e18;
+
     // policyId => whether a payout has been executed (prevents double-payout)
     mapping(bytes32 => bool) public payoutExecuted;
 
