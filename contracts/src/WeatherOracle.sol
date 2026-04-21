@@ -124,6 +124,7 @@ contract WeatherOracle {
         int256 rainfall,
         uint40 timestamp
     ) external onlyAgent {
+        totalApiCalls++;
         emit ApiDataReceived(source, lat, lng, temperature, rainfall, timestamp);
     }
 
