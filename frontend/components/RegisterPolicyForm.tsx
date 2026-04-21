@@ -105,6 +105,15 @@ export function RegisterPolicyForm({ onSuccess }: Props) {
       });
 
       setStep("done");
+      setValidationErrors({});
+      // Reset form after 3 seconds
+      setTimeout(() => {
+        setLatDeg("");
+        setLngDeg("");
+        setCoverageAmountCUSD("10");
+        setDurationMonths(3);
+        setStep("idle");
+      }, 3000);
       setTimeout(onSuccess, 1500);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Transaction failed.");
