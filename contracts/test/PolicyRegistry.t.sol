@@ -140,6 +140,23 @@ contract PolicyRegistryTest is Test {
         assertTrue(registry.isPolicyExpired(policyId));
     }
 
+    function test_BatchExpirePolicies() public {
+        bytes32 id1 = _registerPolicy();
+        bytes32 id2 = _registerPolicyWithType(PolicyRegistry.CoverageType.FLOOD);
+
+        // Warp past end date
+        vm.warp(block.timestamp + DURATION + 1);
+
+        bytes32[] memory ids = new bytes32[](2);
+        ids[0] = id1;
+        ids[1] = id2;
+
+        registry.batchExpirePolicies(ids);
+
+        assertEq(uint8(registry.getPolicy(id1).status), uint8(PolicyRegistry.PolicyStatus.EXPIRED));
+        assertEq(uint8(registry.getPolicy(id2).status), uint8(PolicyRegistry.PolicyStatus.EXPIRED));
+    }
+
     function test_GetFarmerPolicies() public {
         bytes32 id1 = _registerPolicy();
         // Register second policy with different coverage type
