@@ -180,4 +180,33 @@ contract PolicyRegistry {
     function calculatePremium(uint256 coverageAmount) external pure returns (uint256) {
         return _calculatePremium(coverageAmount);
     }
+
+    /// @notice Get all active policy IDs for a farmer (gas optimized).
+    function getActiveFarmerPolicies(address farmer) external view returns (bytes32[] memory) {
+        bytes32[] memory allPolicies = farmerPolicies[farmer];
+        uint256 length = allPolicies.length;
+        uint256 activeCount;
+
+        // First pass: count active policies
+        for (uint256 i = 0; i < length; ) {
+            if (policies[allPolicies[i]].status == PolicyStatus.ACTIVE) {
+                activeCount++;
+            }
+            unchecked { i++; }
+        }
+
+        // Second pass: collect active policies
+        bytes32[] memory activePolicies = new bytes32[](activeCount);
+        uint256 index;
+        for (uint256 i = 0; i < length; ) {
+            bytes32 policyId = allPolicies[i];
+            if (policies[policyId].status == PolicyStatus.ACTIVE) {
+                activePolicies[index] = policyId;
+                unchecked { index++; }
+            }
+            unchecked { i++; }
+        }
+
+        return activePolicies;
+    }
 }
