@@ -210,6 +210,9 @@ export function RegisterPolicyForm({ onSuccess }: Props) {
               key={i}
               type="button"
               onClick={() => setCoverageType(i)}
+              tabIndex={0}
+              role="radio"
+              aria-checked={coverageType === i}
               className={`text-left p-3 rounded-xl border text-sm transition-colors ${
                 coverageType === i
                   ? "border-verdant-500 bg-verdant-50 text-verdant-800"
@@ -236,6 +239,9 @@ export function RegisterPolicyForm({ onSuccess }: Props) {
               key={amount}
               type="button"
               onClick={() => setCoverageAmountCUSD(amount)}
+              tabIndex={0}
+              role="radio"
+              aria-checked={coverageAmountCUSD === amount}
               className={`flex-1 py-2.5 rounded-xl border text-sm font-medium transition-colors ${
                 coverageAmountCUSD === amount
                   ? "border-verdant-500 bg-verdant-50 text-verdant-700"
@@ -262,6 +268,9 @@ export function RegisterPolicyForm({ onSuccess }: Props) {
               key={months}
               type="button"
               onClick={() => setDurationMonths(months)}
+              tabIndex={0}
+              role="radio"
+              aria-checked={durationMonths === months}
               className={`flex-1 py-2.5 rounded-xl border text-sm font-medium transition-colors ${
                 durationMonths === months
                   ? "border-verdant-500 bg-verdant-50 text-verdant-700"
