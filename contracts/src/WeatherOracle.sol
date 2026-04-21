@@ -132,6 +132,12 @@ contract WeatherOracle {
     }
 
     /// @notice Record raw API data for logging purposes. Called by agent before consensus.
+    /// @param source The API source name (e.g., "open-meteo")
+    /// @param lat Latitude scaled by 1e6
+    /// @param lng Longitude scaled by 1e6
+    /// @param temperature Temperature in °C * 100
+    /// @param rainfall Rainfall in mm * 100
+    /// @param timestamp Unix timestamp
     function recordApiData(
         string calldata source,
         int256 lat,
