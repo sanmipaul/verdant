@@ -57,7 +57,7 @@ contract PayoutVault {
 
         payoutExecuted[policyId] = true;
 
-        uint256 amount = p.coverageAmount;
+        uint256 amount = p.coverageAmount * p.premiumPaid / 0.5e18;
 
         pool.withdrawForPayout(amount, p.farmer);
 
