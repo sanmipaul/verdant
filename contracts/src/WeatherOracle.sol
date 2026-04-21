@@ -156,6 +156,16 @@ contract WeatherOracle {
         emit AgentHeartbeat(uint40(block.timestamp), eventsRecordedToday);
     }
 
+    /// @notice Get comprehensive logging statistics.
+    function getLoggingStats() external view returns (
+        uint256 totalEvents,
+        uint256 totalApiCalls_,
+        uint256 lastHeartbeat,
+        uint256 eventsToday_
+    ) {
+        return (totalEventsRecorded, totalApiCalls, lastHeartbeatTimestamp, eventsToday);
+    }
+
     /// @notice Get a single weather event by ID.
     function getEvent(bytes32 eventId) external view returns (WeatherEvent memory) {
         return events[eventId];
