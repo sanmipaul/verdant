@@ -157,6 +157,23 @@ contract PolicyRegistryTest is Test {
         assertEq(uint8(registry.getPolicy(id2).status), uint8(PolicyRegistry.PolicyStatus.EXPIRED));
     }
 
+    function test_GetActiveFarmerPolicies() public {
+        bytes32 id1 = _registerPolicy();
+        bytes32 id2 = _registerPolicyWithType(PolicyRegistry.CoverageType.FLOOD);
+
+        // Initially both active
+        bytes32[] memory active = registry.getActiveFarmerPolicies(farmer);
+        assertEq(active.length, 2);
+
+        // Expire one
+        vm.warp(block.timestamp + DURATION + 1);
+        registry.expirePolicy(id1);
+
+        active = registry.getActiveFarmerPolicies(farmer);
+        assertEq(active.length, 1);
+        assertEq(active[0], id2);
+    }
+
     function test_GetFarmerPolicies() public {
         bytes32 id1 = _registerPolicy();
         // Register second policy with different coverage type
