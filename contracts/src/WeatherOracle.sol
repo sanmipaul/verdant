@@ -162,6 +162,8 @@ contract WeatherOracle {
     }
 
     /// @dev Calculate consensus value from multiple API data (simple average).
+    /// @param apiData Array of API data points
+    /// @return The average value
     function _calculateConsensus(ApiData[] calldata apiData) internal pure returns (int256) {
         int256 sum = 0;
         for (uint256 i = 0; i < apiData.length; i++) {
