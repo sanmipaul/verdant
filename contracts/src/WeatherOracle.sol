@@ -180,6 +180,24 @@ contract WeatherOracle {
         return (totalEventsRecorded, totalApiCalls, lastHeartbeatTimestamp, eventsToday);
     }
 
+    /// @notice Record API failure for monitoring.
+    function recordApiFailure(
+        string calldata source,
+        int256 lat,
+        int256 lng,
+        string calldata reason
+    ) external onlyAgent {
+        emit ApiFailure(source, lat, lng, reason, uint40(block.timestamp));
+    }
+
+    /// @notice Record system alert for critical issues.
+    function recordSystemAlert(
+        string calldata alertType,
+        string calldata message
+    ) external onlyAgent {
+        emit SystemAlert(alertType, message, uint40(block.timestamp));
+    }
+
     /// @notice Get a single weather event by ID.
     function getEvent(bytes32 eventId) external view returns (WeatherEvent memory) {
         return events[eventId];
