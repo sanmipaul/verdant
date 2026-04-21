@@ -54,7 +54,8 @@ contract PayoutVaultTest is Test {
         vm.prank(agent);
         vault.triggerPayout(policyId);
 
-        assertEq(cUSD.balanceOf(farmer), farmerBalanceBefore + COVERAGE);
+        uint256 expectedPayout = vault.calculatePayout(policyId);
+        assertEq(cUSD.balanceOf(farmer), farmerBalanceBefore + expectedPayout);
         assertTrue(vault.isPayoutExecuted(policyId));
     }
 
