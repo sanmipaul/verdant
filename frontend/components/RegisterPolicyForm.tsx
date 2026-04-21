@@ -114,13 +114,13 @@ export function RegisterPolicyForm({ onSuccess }: Props) {
 
   if (step === "done") {
     return (
-      <div className="text-center py-14">
-        <div className="text-5xl mb-3">✅</div>
-        <p className="font-semibold text-verdant-700 text-lg">
-          Policy Registered!
+      <div className="text-center py-14 bg-green-50 rounded-2xl border border-green-200">
+        <div className="text-6xl mb-4">✅</div>
+        <p className="font-semibold text-green-800 text-lg">
+          Policy Registered Successfully!
         </p>
-        <p className="text-sm text-gray-400 mt-1">
-          Your coverage is now active.
+        <p className="text-sm text-green-600 mt-2">
+          Your coverage is now active and will be monitored automatically.
         </p>
       </div>
     );
