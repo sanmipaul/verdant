@@ -127,8 +127,12 @@ contract WeatherOracle {
     /// @dev Snap coordinates to a 50km grid for region grouping.
     function _regionHash(int256 lat, int256 lng) internal pure returns (bytes32) {
         // 0.45 degrees ≈ 50km; scale factor 1e6 so 0.45° = 450000
-        int256 gridLat = (lat / 450000) * 450000;
-        int256 gridLng = (lng / 450000) * 450000;
+        int256 gridLat;
+        int256 gridLng;
+        assembly {
+            gridLat := mul(sdiv(lat, 450000), 450000)
+            gridLng := mul(sdiv(lng, 450000), 450000)
+        }
         return keccak256(abi.encodePacked(gridLat, gridLng));
     }
 }
