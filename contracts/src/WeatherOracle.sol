@@ -72,6 +72,20 @@ contract WeatherOracle {
         uint256 eventsRecordedToday
     );
 
+    event ApiFailure(
+        string indexed source,
+        int256 lat,
+        int256 lng,
+        string reason,
+        uint40 timestamp
+    );
+
+    event SystemAlert(
+        string alertType,
+        string message,
+        uint40 timestamp
+    );
+
     error Unauthorized();
     error EventAlreadyExists();
 
