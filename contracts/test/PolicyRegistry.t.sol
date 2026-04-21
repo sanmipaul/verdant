@@ -125,6 +125,21 @@ contract PolicyRegistryTest is Test {
         assertEq(uint8(p.status), uint8(PolicyRegistry.PolicyStatus.EXPIRED));
     }
 
+    function test_IsPolicyExpired() public {
+        bytes32 policyId = _registerPolicy();
+
+        // Initially not expired
+        assertFalse(registry.isPolicyExpired(policyId));
+
+        // Warp past end date
+        vm.warp(block.timestamp + DURATION + 1);
+        assertTrue(registry.isPolicyExpired(policyId));
+
+        // After expiring
+        registry.expirePolicy(policyId);
+        assertTrue(registry.isPolicyExpired(policyId));
+    }
+
     function test_GetFarmerPolicies() public {
         bytes32 id1 = _registerPolicy();
         // Register second policy with different coverage type
