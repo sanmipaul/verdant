@@ -17,9 +17,9 @@ contract WeatherOracle {
         int256 lat;        // latitude scaled by 1e6
         int256 lng;        // longitude scaled by 1e6
         EventType eventType;
-        int256 value;      // e.g. rainfall in mm * 100, temperature in °C * 100
+        int256 value;      // consensus value
         uint40 timestamp;
-        string dataSource; // "open-meteo" | "nasa-power" | "ai-adjudicated"
+        ApiData[] sources; // multiple data sources
     }
 
     struct ApiData {
