@@ -29,6 +29,12 @@ contract WeatherOracle {
     // region hash => list of event IDs (region = keccak256(lat, lng, 50km grid))
     mapping(bytes32 => bytes32[]) public regionEvents;
 
+    // Logging statistics
+    uint256 public totalEventsRecorded;
+    uint256 public totalApiCalls;
+    uint256 public lastHeartbeatTimestamp;
+    uint256 public eventsToday;
+
     event WeatherEventRecorded(
         bytes32 indexed eventId,
         bytes32 indexed regionHash,
