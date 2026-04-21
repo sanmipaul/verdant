@@ -37,6 +37,35 @@ contract WeatherOracle {
         uint40 timestamp
     );
 
+    event ApiDataReceived(
+        string indexed source,
+        int256 lat,
+        int256 lng,
+        int256 temperature,
+        int256 rainfall,
+        uint40 timestamp
+    );
+
+    event ConsensusCalculated(
+        bytes32 indexed eventId,
+        uint256 sourcesUsed,
+        int256 finalTemperature,
+        int256 finalRainfall,
+        uint40 timestamp
+    );
+
+    event EventThresholdTriggered(
+        bytes32 indexed eventId,
+        EventType eventType,
+        int256 value,
+        int256 threshold
+    );
+
+    event AgentHeartbeat(
+        uint40 timestamp,
+        uint256 eventsRecordedToday
+    );
+
     error Unauthorized();
     error EventAlreadyExists();
 
