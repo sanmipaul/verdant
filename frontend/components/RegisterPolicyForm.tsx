@@ -150,13 +150,18 @@ export function RegisterPolicyForm({ onSuccess }: Props) {
           <label className="text-sm font-medium text-gray-700">
             Farm Location
           </label>
-          <button
-            type="button"
-            onClick={detectLocation}
-            className="text-xs text-verdant-600 underline"
-          >
-            Use my location
-          </button>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-gray-400">
+              Enter coordinates or use GPS
+            </span>
+            <button
+              type="button"
+              onClick={detectLocation}
+              className="text-xs text-verdant-600 underline"
+            >
+              Use my location
+            </button>
+          </div>
         </div>
         <div className="grid grid-cols-2 gap-2">
           <div>
