@@ -100,6 +100,20 @@ contract WeatherOracle {
         return events[eventId].sources;
     }
 
+    /// @notice Check if the consensus is reliable (variance below threshold).
+    function isConsensusReliable(bytes32 eventId, int256 threshold) external view returns (bool) {
+        ApiData[] memory sources = events[eventId].sources;
+        if (sources.length < 2) return true; // single source is reliable
+        int256 mean = events[eventId].value;
+        int256 variance = 0;
+        for (uint256 i = 0; i < sources.length; i++) {
+            int256 diff = sources[i].value - mean;
+            variance += diff * diff;
+        }
+        variance /= int256(sources.length);
+        return variance <= threshold;
+    }
+
     /// @notice Get all event IDs for a geographic region.
     function getRegionEvents(int256 lat, int256 lng) external view returns (bytes32[] memory) {
         return regionEvents[_regionHash(lat, lng)];
