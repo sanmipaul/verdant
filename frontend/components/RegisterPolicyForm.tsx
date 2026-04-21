@@ -293,8 +293,8 @@ export function RegisterPolicyForm({ onSuccess }: Props) {
       </div>
 
       {/* Summary */}
-      {premiumWei !== undefined && (
-        <div className="bg-gray-50 rounded-2xl p-4 space-y-1.5 text-sm">
+      {premiumWei !== undefined ? (
+        <div className="bg-gray-50 rounded-2xl p-4 space-y-1.5 text-sm animate-in fade-in-0 duration-300">
           <div className="flex justify-between">
             <span className="text-gray-500">Coverage payout</span>
             <span className="font-medium">{coverageAmountCUSD} cUSD</span>
@@ -310,7 +310,11 @@ export function RegisterPolicyForm({ onSuccess }: Props) {
             <span className="font-medium">{durationMonths} month(s)</span>
           </div>
         </div>
-      )}
+      ) : coverageAmountWei > 0n ? (
+        <div className="bg-gray-50 rounded-2xl p-4 text-center text-sm text-gray-500 animate-pulse">
+          Calculating premium...
+        </div>
+      ) : null}
 
       {error && (
         <p className="text-red-500 text-xs bg-red-50 rounded-xl px-3 py-2 border border-red-200 animate-in slide-in-from-top-2 duration-300">
