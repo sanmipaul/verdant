@@ -57,7 +57,8 @@ contract PremiumPool {
     /// @notice Called by PayoutVault to withdraw funds for a payout.
     function withdrawForPayout(uint256 amount, address recipient) external onlyVault {
         if (amount == 0) revert ZeroAmount();
-        if (cUSD.balanceOf(address(this)) < amount) revert InsufficientBalance();
+        uint256 balance = cUSD.balanceOf(address(this));
+        if (balance < amount) revert InsufficientBalance();
         totalPaidOut += amount;
         cUSD.transfer(recipient, amount);
         emit FundsWithdrawn(recipient, amount);
