@@ -7,6 +7,7 @@ import {PremiumPool} from "./PremiumPool.sol";
 /// @title PolicyRegistry
 /// @notice Stores all crop insurance policies. Farmers register plots here,
 ///         pay premiums, and policies are tracked through their lifecycle.
+/// @dev Gas optimizations: unchecked loops, cached timestamps, assembly math, batch operations
 contract PolicyRegistry {
     enum CoverageType {
         DROUGHT,
