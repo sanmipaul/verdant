@@ -254,6 +254,9 @@ export function RegisterPolicyForm({ onSuccess }: Props) {
             </button>
           ))}
         </div>
+        {validationErrors.duration && (
+          <p className="text-red-500 text-xs mt-1">{validationErrors.duration}</p>
+        )}
       </div>
 
       {/* Summary */}
