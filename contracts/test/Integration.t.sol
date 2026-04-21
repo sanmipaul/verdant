@@ -98,7 +98,7 @@ contract IntegrationTest is Test {
         PolicyRegistry.Policy memory p = registry.getPolicy(policyId);
         assertEq(uint8(p.status), uint8(PolicyRegistry.PolicyStatus.CLAIMED));
 
-        // 7. Oracle has the weather event on-chain
+        // 7. Oracle has the weather event on-chain with consensus value
         bytes32[] memory events = oracle.getRegionEvents(LAT, LNG);
         assertEq(events.length, 1);
     }
