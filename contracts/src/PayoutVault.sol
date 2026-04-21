@@ -83,7 +83,7 @@ contract PayoutVault {
 
             payoutExecuted[policyId] = true;
             // Calculate payout proportional to premium paid relative to minimum premium
-            uint256 amount = p.coverageAmount * p.premiumPaid / MIN_PREMIUM;
+            uint256 amount = p.premiumPaid == 0 ? 0 : p.coverageAmount * p.premiumPaid / MIN_PREMIUM;
             totalAmount += amount;
             count++;
 
