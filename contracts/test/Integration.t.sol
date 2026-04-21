@@ -101,6 +101,9 @@ contract IntegrationTest is Test {
         // 7. Oracle has the weather event on-chain with consensus value
         bytes32[] memory events = oracle.getRegionEvents(LAT, LNG);
         assertEq(events.length, 1);
+
+        // 8. Consensus is reliable
+        assertTrue(oracle.isConsensusReliable(events[0], 10000));
     }
 
     function test_MultipleRegionsIndependent() public {
