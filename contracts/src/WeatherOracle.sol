@@ -118,6 +118,17 @@ contract WeatherOracle {
         emit ApiDataReceived(source, lat, lng, temperature, rainfall, timestamp);
     }
 
+    /// @notice Record consensus calculation results for transparency.
+    function recordConsensus(
+        bytes32 eventId,
+        uint256 sourcesUsed,
+        int256 finalTemperature,
+        int256 finalRainfall,
+        uint40 timestamp
+    ) external onlyAgent {
+        emit ConsensusCalculated(eventId, sourcesUsed, finalTemperature, finalRainfall, timestamp);
+    }
+
     /// @notice Get a single weather event by ID.
     function getEvent(bytes32 eventId) external view returns (WeatherEvent memory) {
         return events[eventId];
