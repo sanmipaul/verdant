@@ -160,6 +160,18 @@ contract PolicyRegistry {
         emit PolicyExpired(policyId);
     }
 
+    /// @notice Batch expire multiple policies that have passed their end dates.
+    function batchExpirePolicies(bytes32[] calldata policyIds) external {
+        for (uint256 i = 0; i < policyIds.length; i++) {
+            bytes32 policyId = policyIds[i];
+            Policy storage p = policies[policyId];
+            if (p.status == PolicyStatus.ACTIVE && block.timestamp > p.endDate) {
+                p.status = PolicyStatus.EXPIRED;
+                emit PolicyExpired(policyId);
+            }
+        }
+    }
+
     /// @notice Get all policy IDs for a farmer.
     function getFarmerPolicies(address farmer) external view returns (bytes32[] memory) {
         return farmerPolicies[farmer];
