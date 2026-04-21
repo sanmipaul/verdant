@@ -88,7 +88,7 @@ contract WeatherOracle {
         bytes32 regionHash = _regionHash(lat, lng);
         regionEvents[regionHash].push(eventId);
 
-        emit WeatherEventRecorded(eventId, regionHash, eventType, consensusValue, timestamp);
+        emit WeatherEventRecorded(eventId, regionHash, eventType, consensusValue, timestamp, apiData.length);
     }
 
     /// @notice Get a single weather event by ID.
