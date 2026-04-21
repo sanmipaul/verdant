@@ -1,5 +1,10 @@
 "use client";
 
+// TODO: Add form persistence to localStorage to prevent data loss on page refresh
+// TODO: Implement progressive enhancement for GPS location with fallback to manual input
+// TODO: Add unit tests for form validation logic
+// TODO: Consider adding a map integration for visual location selection
+
 import { useState } from "react";
 import { useWriteContract, useReadContract } from "wagmi";
 import { parseUnits } from "viem";
