@@ -153,6 +153,24 @@ contract PolicyRegistry {
         emit PolicyClaimed(policyId, p.farmer, p.coverageAmount);
     }
 
+    /// @notice Batch mark multiple policies as claimed (gas optimized).
+    function batchMarkClaimed(bytes32[] calldata policyIds) external onlyAgent {
+        uint256 length = policyIds.length;
+        uint40 currentTime = uint40(block.timestamp);
+
+        for (uint256 i = 0; i < length; ) {
+            bytes32 policyId = policyIds[i];
+            Policy storage p = policies[policyId];
+
+            if (p.status == PolicyStatus.ACTIVE && currentTime <= p.endDate) {
+                p.status = PolicyStatus.CLAIMED;
+                emit PolicyClaimed(policyId, p.farmer, p.coverageAmount);
+            }
+
+            unchecked { i++; }
+        }
+    }
+
     /// @notice Expire a policy that has passed its end date.
     function expirePolicy(bytes32 policyId) external {
         Policy storage p = policies[policyId];
