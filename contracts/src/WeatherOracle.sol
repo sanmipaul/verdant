@@ -129,6 +129,16 @@ contract WeatherOracle {
         emit ConsensusCalculated(eventId, sourcesUsed, finalTemperature, finalRainfall, timestamp);
     }
 
+    /// @notice Record when a weather threshold is triggered for an event.
+    function recordThresholdTrigger(
+        bytes32 eventId,
+        EventType eventType,
+        int256 value,
+        int256 threshold
+    ) external onlyAgent {
+        emit EventThresholdTriggered(eventId, eventType, value, threshold);
+    }
+
     /// @notice Get a single weather event by ID.
     function getEvent(bytes32 eventId) external view returns (WeatherEvent memory) {
         return events[eventId];
