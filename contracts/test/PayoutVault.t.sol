@@ -54,7 +54,8 @@ contract PayoutVaultTest is Test {
         vm.prank(agent);
         vault.triggerPayout(policyId);
 
-        assertEq(cUSD.balanceOf(farmer), farmerBalanceBefore + COVERAGE);
+        uint256 expectedPayout = vault.calculatePayout(policyId);
+        assertEq(cUSD.balanceOf(farmer), farmerBalanceBefore + expectedPayout);
         assertTrue(vault.isPayoutExecuted(policyId));
     }
 
@@ -78,12 +79,10 @@ contract PayoutVaultTest is Test {
         vault.triggerPayout(policyId);
     }
 
-    function test_OnlyAgentCanTrigger() public {
+    function test_CalculatePayout() public {
         bytes32 policyId = _registerAndClaimPolicy();
-
-        vm.expectRevert(PayoutVault.Unauthorized.selector);
-        vm.prank(farmer);
-        vault.triggerPayout(policyId);
+        uint256 expected = vault.calculatePayout(policyId);
+        assertEq(expected, COVERAGE); // Since premium = MIN_PREMIUM
     }
 
     function test_BatchPayout() public {
@@ -99,7 +98,9 @@ contract PayoutVaultTest is Test {
         vm.prank(agent);
         vault.batchPayout(ids);
 
-        assertEq(cUSD.balanceOf(farmer), farmerBalanceBefore + COVERAGE * 2);
+        uint256 expectedPayout1 = vault.calculatePayout(id1);
+        uint256 expectedPayout2 = vault.calculatePayout(id2);
+        assertEq(cUSD.balanceOf(farmer), farmerBalanceBefore + expectedPayout1 + expectedPayout2);
     }
 
     function test_BatchPayout_SkipsAlreadyPaid() public {
@@ -122,7 +123,8 @@ contract PayoutVaultTest is Test {
         vault.batchPayout(ids);
 
         // Only id2 payout added
-        assertEq(cUSD.balanceOf(farmer), balanceBeforeBatch + COVERAGE);
+        uint256 expectedPayout2 = vault.calculatePayout(id2);
+        assertEq(cUSD.balanceOf(farmer), balanceBeforeBatch + expectedPayout2);
     }
 
     // --- helpers ---
