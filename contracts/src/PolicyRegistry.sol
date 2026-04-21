@@ -194,7 +194,10 @@ contract PolicyRegistry {
     /// @notice Calculate premium for a given coverage amount.
     ///         Premium = 1% of coverage amount, minimum 0.50 cUSD.
     function _calculatePremium(uint256 coverageAmount) internal pure returns (uint256) {
-        uint256 calculated = coverageAmount / 100;
+        uint256 calculated;
+        assembly {
+            calculated := div(coverageAmount, 100)
+        }
         return calculated < MIN_PREMIUM ? MIN_PREMIUM : calculated;
     }
 
