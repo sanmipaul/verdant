@@ -56,32 +56,38 @@ contract WeatherOracle {
         agent = _agent;
     }
 
-    /// @notice Record a weather event. Called by the Cloudflare agent after polling APIs.
+    /// @notice Record a weather event with multiple API sources.
     function recordEvent(
         int256 lat,
         int256 lng,
         EventType eventType,
-        int256 value,
-        uint40 timestamp,
-        string calldata dataSource
+        ApiData[] calldata apiData,
+        uint40 timestamp
     ) external onlyAgent returns (bytes32 eventId) {
         eventId = keccak256(abi.encodePacked(lat, lng, eventType, timestamp));
 
         if (events[eventId].timestamp != 0) revert EventAlreadyExists();
 
+        int256 consensusValue = _calculateConsensus(apiData);
+
+        ApiData[] memory sources = new ApiData[](apiData.length);
+        for (uint256 i = 0; i < apiData.length; i++) {
+            sources[i] = apiData[i];
+        }
+
         events[eventId] = WeatherEvent({
             lat: lat,
             lng: lng,
             eventType: eventType,
-            value: value,
+            value: consensusValue,
             timestamp: timestamp,
-            dataSource: dataSource
+            sources: sources
         });
 
         bytes32 regionHash = _regionHash(lat, lng);
         regionEvents[regionHash].push(eventId);
 
-        emit WeatherEventRecorded(eventId, regionHash, eventType, value, timestamp);
+        emit WeatherEventRecorded(eventId, regionHash, eventType, consensusValue, timestamp);
     }
 
     /// @notice Get a single weather event by ID.
