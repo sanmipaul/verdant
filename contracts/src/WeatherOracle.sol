@@ -22,6 +22,12 @@ contract WeatherOracle {
         string dataSource; // "open-meteo" | "nasa-power" | "ai-adjudicated"
     }
 
+    struct ApiData {
+        string source;
+        int256 value;
+        uint40 timestamp;
+    }
+
     address public immutable agent;
 
     // eventId => WeatherEvent
