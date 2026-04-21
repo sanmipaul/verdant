@@ -138,8 +138,9 @@ contract IntegrationTest is Test {
         vault.triggerPayout(policy1);
 
         // Farmer1 received payout, Farmer2 did not
-        assertGt(cUSD.balanceOf(farmer1), 20e18); // started with 50, paid premium, received 20
-        assertLt(cUSD.balanceOf(farmer2), 50e18); // only paid premium, no payout
+        uint256 expectedPayout1 = vault.calculatePayout(policy1);
+        assertEq(cUSD.balanceOf(farmer1), 50e18 - registry.calculatePremium(coverage) + expectedPayout1);
+        assertEq(cUSD.balanceOf(farmer2), 50e18 - registry.calculatePremium(coverage));
         assertFalse(vault.isPayoutExecuted(policy2));
     }
 
