@@ -139,6 +139,11 @@ contract WeatherOracle {
         emit EventThresholdTriggered(eventId, eventType, value, threshold);
     }
 
+    /// @notice Record agent heartbeat for monitoring system health.
+    function recordHeartbeat(uint256 eventsRecordedToday) external onlyAgent {
+        emit AgentHeartbeat(uint40(block.timestamp), eventsRecordedToday);
+    }
+
     /// @notice Get a single weather event by ID.
     function getEvent(bytes32 eventId) external view returns (WeatherEvent memory) {
         return events[eventId];
