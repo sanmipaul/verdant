@@ -169,6 +169,14 @@ contract IntegrationTest is Test {
             vm.stopPrank();
         }
 
+        // Agent records a region-wide drought event
+        WeatherOracle.ApiData[] memory apiData = new WeatherOracle.ApiData[](2);
+        apiData[0] = WeatherOracle.ApiData("open-meteo", 800, uint40(block.timestamp));
+        apiData[1] = WeatherOracle.ApiData("nasa-power", 750, uint40(block.timestamp));
+
+        vm.prank(agent);
+        oracle.recordEvent(LAT, LNG, WeatherOracle.EventType.DROUGHT, apiData, uint40(block.timestamp));
+
         // Agent claims all three
         for (uint256 i = 0; i < 3; i++) {
             vm.prank(agent);
@@ -179,7 +187,7 @@ contract IntegrationTest is Test {
         vm.prank(agent);
         vault.batchPayout(ids);
 
-        // All three received payouts
+        // All three received payouts proportional to premiums
         for (uint256 i = 0; i < 3; i++) {
             assertTrue(vault.isPayoutExecuted(ids[i]));
             uint256 expectedPayout = vault.calculatePayout(ids[i]);
