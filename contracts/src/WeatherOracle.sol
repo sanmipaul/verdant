@@ -177,9 +177,11 @@ contract WeatherOracle {
         uint256 totalEvents,
         uint256 totalApiCalls_,
         uint256 lastHeartbeat,
-        uint256 eventsToday_
+        uint256 eventsToday_,
+        uint256 totalFailures,
+        uint256 totalAlerts
     ) {
-        return (totalEventsRecorded, totalApiCalls, lastHeartbeatTimestamp, eventsToday);
+        return (totalEventsRecorded, totalApiCalls, lastHeartbeatTimestamp, eventsToday, totalApiFailures, totalSystemAlerts);
     }
 
     /// @notice Record API failure for monitoring.
