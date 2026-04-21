@@ -121,6 +121,9 @@ contract PolicyRegistry {
         // Transfer premium to pool
         cUSD.transferFrom(msg.sender, address(premiumPool), premium);
 
+        // Cache current timestamp
+        uint40 currentTime = uint40(block.timestamp);
+
         policies[policyId] = Policy({
             policyId: policyId,
             farmer: msg.sender,
@@ -129,7 +132,7 @@ contract PolicyRegistry {
             coverageType: coverageType,
             coverageAmount: coverageAmount,
             premiumPaid: premium,
-            startDate: uint40(block.timestamp),
+            startDate: currentTime,
             endDate: endDate,
             status: PolicyStatus.ACTIVE
         });
@@ -152,6 +155,24 @@ contract PolicyRegistry {
         p.status = PolicyStatus.CLAIMED;
 
         emit PolicyClaimed(policyId, p.farmer, p.coverageAmount);
+    }
+
+    /// @notice Batch mark multiple policies as claimed (gas optimized).
+    function batchMarkClaimed(bytes32[] calldata policyIds) external onlyAgent {
+        uint256 length = policyIds.length;
+        uint40 currentTime = uint40(block.timestamp);
+
+        for (uint256 i = 0; i < length; ) {
+            bytes32 policyId = policyIds[i];
+            Policy storage p = policies[policyId];
+
+            if (p.status == PolicyStatus.ACTIVE && currentTime <= p.endDate) {
+                p.status = PolicyStatus.CLAIMED;
+                emit PolicyClaimed(policyId, p.farmer, p.coverageAmount);
+            }
+
+            unchecked { i++; }
+        }
     }
 
     /// @notice Expire a policy that has passed its end date.
@@ -219,12 +240,50 @@ contract PolicyRegistry {
     /// @notice Calculate premium for a given coverage amount.
     ///         Premium = 1% of coverage amount, minimum 0.50 cUSD.
     function _calculatePremium(uint256 coverageAmount) internal pure returns (uint256) {
-        uint256 calculated = coverageAmount / 100;
+        uint256 calculated;
+        assembly {
+            calculated := div(coverageAmount, 100)
+        }
         return calculated < MIN_PREMIUM ? MIN_PREMIUM : calculated;
     }
 
     /// @notice Public view for premium calculation.
     function calculatePremium(uint256 coverageAmount) external pure returns (uint256) {
         return _calculatePremium(coverageAmount);
+    }
+
+    /// @notice Get all active policy IDs for a farmer (gas optimized).
+    function getActiveFarmerPolicies(address farmer) external view returns (bytes32[] memory) {
+        bytes32[] memory allPolicies = farmerPolicies[farmer];
+        uint256 length = allPolicies.length;
+        uint256 activeCount;
+
+        // First pass: count active policies
+        for (uint256 i = 0; i < length; ) {
+            if (policies[allPolicies[i]].status == PolicyStatus.ACTIVE) {
+                activeCount++;
+            }
+            unchecked { i++; }
+        }
+
+        // Second pass: collect active policies
+        bytes32[] memory activePolicies = new bytes32[](activeCount);
+        uint256 index;
+        for (uint256 i = 0; i < length; ) {
+            bytes32 policyId = allPolicies[i];
+            if (policies[policyId].status == PolicyStatus.ACTIVE) {
+                activePolicies[index] = policyId;
+                unchecked { index++; }
+            }
+            unchecked { i++; }
+        }
+
+        return activePolicies;
+    }
+
+    /// @notice Check if a policy is expired (gas optimized view).
+    function isPolicyExpired(bytes32 policyId) external view returns (bool) {
+        Policy storage p = policies[policyId];
+        return p.status == PolicyStatus.ACTIVE && uint40(block.timestamp) > p.endDate;
     }
 }

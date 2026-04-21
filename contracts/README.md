@@ -15,6 +15,16 @@ https://book.getfoundry.sh/
 
 ## Usage
 
+### Gas Optimizations
+
+This project implements several gas optimization techniques:
+
+- **Unchecked arithmetic**: Using `unchecked` blocks for loop increments where overflow is impossible
+- **Cached calculations**: Storing `block.timestamp` and array lengths in local variables
+- **Assembly optimizations**: Using Yul assembly for simple math operations
+- **Batch operations**: Functions like `batchPayout`, `batchDeposit`, `batchExpirePolicies` to reduce transaction overhead
+- **Minimized SLOADs**: Caching storage reads to avoid duplicate expensive operations
+
 ### Build
 
 ```shell

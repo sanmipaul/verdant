@@ -72,14 +72,17 @@ contract PayoutVault {
     function batchPayout(bytes32[] calldata policyIds) external onlyAgent {
         uint256 count;
         uint256 totalAmount;
+        uint256 length = policyIds.length;
 
-        for (uint256 i = 0; i < policyIds.length; i++) {
+        for (uint256 i = 0; i < length; ) {
             bytes32 policyId = policyIds[i];
 
-            if (payoutExecuted[policyId]) continue;
-
-            PolicyRegistry.Policy memory p = registry.getPolicy(policyId);
-            if (p.status != PolicyRegistry.PolicyStatus.CLAIMED) continue;
+            if (!payoutExecuted[policyId]) {
+                PolicyRegistry.Policy memory p = registry.getPolicy(policyId);
+                if (p.status == PolicyRegistry.PolicyStatus.CLAIMED) {
+                    payoutExecuted[policyId] = true;
+                    totalAmount += p.coverageAmount;
+                    count++;
 
             payoutExecuted[policyId] = true;
             // Calculate payout proportional to premium paid relative to minimum premium

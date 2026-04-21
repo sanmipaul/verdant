@@ -197,4 +197,65 @@ contract IntegrationTest is Test {
             assertEq(cUSD.balanceOf(farmers[i]), 10e18 - registry.calculatePremium(coverage) + expectedPayout);
         }
     }
+
+    function test_GasUsageComparison() public {
+        uint256 coverage = 10e18;
+        uint40 endDate = uint40(block.timestamp + 60 days);
+
+        // Create 5 policies
+        bytes32[] memory ids = new bytes32[](5);
+        for (uint256 i = 0; i < 5; i++) {
+            address farmer = makeAddr(string(abi.encodePacked("gasFarmer", i)));
+            cUSD.mint(farmer, 10e18);
+            uint256 premium = registry.calculatePremium(coverage);
+
+            vm.startPrank(farmer);
+            cUSD.approve(address(registry), premium);
+            ids[i] = registry.registerPolicy(LAT, LNG, PolicyRegistry.CoverageType.DROUGHT, coverage, endDate);
+            vm.stopPrank();
+        }
+
+        // Mark all as claimed
+        for (uint256 i = 0; i < 5; i++) {
+            vm.prank(agent);
+            registry.markClaimed(ids[i]);
+        }
+
+        // Measure gas for individual payouts
+        uint256 gasStart = gasleft();
+        for (uint256 i = 0; i < 5; i++) {
+            vm.prank(agent);
+            vault.triggerPayout(ids[i]);
+        }
+        uint256 individualGas = gasStart - gasleft();
+
+        // Reset state for batch test
+        vm.prank(agent);
+        oracle.recordEvent(LAT, LNG, WeatherOracle.EventType.DROUGHT, 1000, uint40(block.timestamp), "open-meteo");
+
+        // Create 5 more policies for batch test
+        bytes32[] memory batchIds = new bytes32[](5);
+        for (uint256 i = 0; i < 5; i++) {
+            address farmer = makeAddr(string(abi.encodePacked("batchFarmer", i)));
+            cUSD.mint(farmer, 10e18);
+            uint256 premium = registry.calculatePremium(coverage);
+
+            vm.startPrank(farmer);
+            cUSD.approve(address(registry), premium);
+            batchIds[i] = registry.registerPolicy(LAT, LNG, PolicyRegistry.CoverageType.DROUGHT, coverage, endDate);
+            vm.stopPrank();
+
+            vm.prank(agent);
+            registry.markClaimed(batchIds[i]);
+        }
+
+        // Measure gas for batch payout
+        gasStart = gasleft();
+        vm.prank(agent);
+        vault.batchPayout(batchIds);
+        uint256 batchGas = gasStart - gasleft();
+
+        // Batch should be more gas efficient
+        assertLt(batchGas, individualGas, "Batch payout should use less gas than individual payouts");
+    }
 }

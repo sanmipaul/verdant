@@ -283,21 +283,25 @@ contract WeatherOracle {
     ) external view returns (WeatherEvent[] memory) {
         bytes32 regionHash = _regionHash(lat, lng);
         bytes32[] memory ids = regionEvents[regionHash];
+        uint256 length = ids.length;
 
         // Count matching
         uint256 count;
-        for (uint256 i = 0; i < ids.length; i++) {
+        for (uint256 i = 0; i < length; ) {
             WeatherEvent storage e = events[ids[i]];
             if (e.timestamp >= from && e.timestamp <= to) count++;
+            unchecked { i++; }
         }
 
         WeatherEvent[] memory result = new WeatherEvent[](count);
         uint256 idx;
-        for (uint256 i = 0; i < ids.length; i++) {
+        for (uint256 i = 0; i < length; ) {
             WeatherEvent storage e = events[ids[i]];
             if (e.timestamp >= from && e.timestamp <= to) {
-                result[idx++] = e;
+                result[idx] = e;
+                unchecked { idx++; }
             }
+            unchecked { i++; }
         }
         return result;
     }
@@ -305,8 +309,12 @@ contract WeatherOracle {
     /// @dev Snap coordinates to a 50km grid for region grouping.
     function _regionHash(int256 lat, int256 lng) internal pure returns (bytes32) {
         // 0.45 degrees ≈ 50km; scale factor 1e6 so 0.45° = 450000
-        int256 gridLat = (lat / 450000) * 450000;
-        int256 gridLng = (lng / 450000) * 450000;
+        int256 gridLat;
+        int256 gridLng;
+        assembly {
+            gridLat := mul(sdiv(lat, 450000), 450000)
+            gridLng := mul(sdiv(lng, 450000), 450000)
+        }
         return keccak256(abi.encodePacked(gridLat, gridLng));
     }
 
