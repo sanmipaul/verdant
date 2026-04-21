@@ -101,4 +101,10 @@ contract PayoutVault {
     function isPayoutExecuted(bytes32 policyId) external view returns (bool) {
         return payoutExecuted[policyId];
     }
+
+    /// @notice Calculate the payout amount for a policy.
+    function calculatePayout(bytes32 policyId) external view returns (uint256) {
+        PolicyRegistry.Policy memory p = registry.getPolicy(policyId);
+        return p.coverageAmount * p.premiumPaid / MIN_PREMIUM;
+    }
 }
