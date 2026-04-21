@@ -121,8 +121,12 @@ contract IntegrationTest is Test {
         vm.stopPrank();
 
         // Agent records event only in Nairobi region
+        WeatherOracle.ApiData[] memory apiData = new WeatherOracle.ApiData[](2);
+        apiData[0] = WeatherOracle.ApiData("open-meteo", 1000, uint40(block.timestamp));
+        apiData[1] = WeatherOracle.ApiData("nasa-power", 950, uint40(block.timestamp));
+
         vm.prank(agent);
-        oracle.recordEvent(LAT, LNG, WeatherOracle.EventType.DROUGHT, 1000, uint40(block.timestamp), "open-meteo");
+        oracle.recordEvent(LAT, LNG, WeatherOracle.EventType.DROUGHT, apiData, uint40(block.timestamp));
 
         // Only Nairobi policy gets claimed
         vm.prank(agent);
