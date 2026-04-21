@@ -106,6 +106,18 @@ contract WeatherOracle {
         emit WeatherEventRecorded(eventId, regionHash, eventType, value, timestamp);
     }
 
+    /// @notice Record raw API data for logging purposes. Called by agent before consensus.
+    function recordApiData(
+        string calldata source,
+        int256 lat,
+        int256 lng,
+        int256 temperature,
+        int256 rainfall,
+        uint40 timestamp
+    ) external onlyAgent {
+        emit ApiDataReceived(source, lat, lng, temperature, rainfall, timestamp);
+    }
+
     /// @notice Get a single weather event by ID.
     function getEvent(bytes32 eventId) external view returns (WeatherEvent memory) {
         return events[eventId];
