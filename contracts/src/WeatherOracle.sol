@@ -189,6 +189,7 @@ contract WeatherOracle {
         int256 lng,
         string calldata reason
     ) external onlyAgent {
+        totalApiFailures++;
         emit ApiFailure(source, lat, lng, reason, uint40(block.timestamp));
     }
 
@@ -197,6 +198,7 @@ contract WeatherOracle {
         string calldata alertType,
         string calldata message
     ) external onlyAgent {
+        totalSystemAlerts++;
         emit SystemAlert(alertType, message, uint40(block.timestamp));
     }
 
