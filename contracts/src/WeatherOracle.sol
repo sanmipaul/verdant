@@ -4,7 +4,7 @@ pragma solidity ^0.8.20;
 /// @title WeatherOracle
 /// @notice Immutable on-chain record of weather events recorded by the authorized agent.
 ///         Used for auditability — any observer can verify what data triggered a payout.
-/// @dev Enhanced: Supports multiple weather APIs for redundancy and consensus.
+/// @dev Enhanced: Supports multiple weather APIs for redundancy and consensus. Requires at least 2 sources.
 contract WeatherOracle {
     enum EventType {
         DROUGHT,
