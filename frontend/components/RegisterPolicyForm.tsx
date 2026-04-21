@@ -43,6 +43,29 @@ export function RegisterPolicyForm({ onSuccess }: Props) {
 
   const { writeContractAsync } = useWriteContract();
 
+  function validateForm() {
+    const errors: {[key: string]: string} = {};
+    const lat = parseFloat(latDeg);
+    const lng = parseFloat(lngDeg);
+    const coverage = parseFloat(coverageAmountCUSD);
+
+    if (!latDeg || isNaN(lat) || lat < -90 || lat > 90) {
+      errors.lat = "Please enter a valid latitude (-90 to 90)";
+    }
+    if (!lngDeg || isNaN(lng) || lng < -180 || lng > 180) {
+      errors.lng = "Please enter a valid longitude (-180 to 180)";
+    }
+    if (!coverageAmountCUSD || isNaN(coverage) || coverage < 1 || coverage > 50) {
+      errors.coverage = "Coverage must be between 1 and 50 cUSD";
+    }
+    if (durationMonths < 1 || durationMonths > 12) {
+      errors.duration = "Duration must be between 1 and 12 months";
+    }
+
+    setValidationErrors(errors);
+    return Object.keys(errors).length === 0;
+  }
+
   function detectLocation() {
     if (!navigator.geolocation) return;
     navigator.geolocation.getCurrentPosition(
