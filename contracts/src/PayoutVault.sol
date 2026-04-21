@@ -55,7 +55,6 @@ contract PayoutVault {
         if (p.status != PolicyRegistry.PolicyStatus.CLAIMED) revert PolicyNotClaimable();
 
         payoutExecuted[policyId] = true;
-
         pool.withdrawForPayout(p.coverageAmount, p.farmer);
 
         emit PayoutExecuted(policyId, p.farmer, p.coverageAmount);
