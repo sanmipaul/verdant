@@ -6,6 +6,7 @@ import {PolicyRegistry} from "../src/PolicyRegistry.sol";
 import {PremiumPool} from "../src/PremiumPool.sol";
 import {MockERC20} from "./mocks/MockERC20.sol";
 
+/// @dev Tests for PolicyRegistry, including expiration features.
 contract PolicyRegistryTest is Test {
     PolicyRegistry public registry;
     PremiumPool public pool;
@@ -91,6 +92,20 @@ contract PolicyRegistryTest is Test {
         assertEq(uint8(p.status), uint8(PolicyRegistry.PolicyStatus.CLAIMED));
     }
 
+    function test_MarkClaimed_AutoExpire() public {
+        bytes32 policyId = _registerPolicy();
+
+        // Warp past end date
+        vm.warp(block.timestamp + DURATION + 1);
+
+        vm.expectRevert(PolicyRegistry.PolicyNotActive.selector);
+        vm.prank(agent);
+        registry.markClaimed(policyId);
+
+        PolicyRegistry.Policy memory p = registry.getPolicy(policyId);
+        assertEq(uint8(p.status), uint8(PolicyRegistry.PolicyStatus.EXPIRED));
+    }
+
     function test_CannotClaimTwice() public {
         bytes32 policyId = _registerPolicy();
 
@@ -124,6 +139,57 @@ contract PolicyRegistryTest is Test {
         PolicyRegistry.Policy memory p = registry.getPolicy(policyId);
         assertEq(uint8(p.status), uint8(PolicyRegistry.PolicyStatus.EXPIRED));
     }
+
+    function test_IsPolicyExpired() public {
+        bytes32 policyId = _registerPolicy();
+
+        // Initially not expired
+        assertFalse(registry.isPolicyExpired(policyId));
+
+        // Warp past end date
+        vm.warp(block.timestamp + DURATION + 1);
+        assertTrue(registry.isPolicyExpired(policyId));
+
+        // After expiring
+        registry.expirePolicy(policyId);
+        assertTrue(registry.isPolicyExpired(policyId));
+    }
+
+    function test_BatchExpirePolicies() public {
+        bytes32 id1 = _registerPolicy();
+        bytes32 id2 = _registerPolicyWithType(PolicyRegistry.CoverageType.FLOOD);
+
+        // Warp past end date
+        vm.warp(block.timestamp + DURATION + 1);
+
+        bytes32[] memory ids = new bytes32[](2);
+        ids[0] = id1;
+        ids[1] = id2;
+
+        registry.batchExpirePolicies(ids);
+
+        assertEq(uint8(registry.getPolicy(id1).status), uint8(PolicyRegistry.PolicyStatus.EXPIRED));
+        assertEq(uint8(registry.getPolicy(id2).status), uint8(PolicyRegistry.PolicyStatus.EXPIRED));
+    }
+
+    function test_GetActiveFarmerPolicies() public {
+        bytes32 id1 = _registerPolicy();
+        bytes32 id2 = _registerPolicyWithType(PolicyRegistry.CoverageType.FLOOD);
+
+        // Initially both active
+        bytes32[] memory active = registry.getActiveFarmerPolicies(farmer);
+        assertEq(active.length, 2);
+
+        // Expire one
+        vm.warp(block.timestamp + DURATION + 1);
+        registry.expirePolicy(id1);
+
+        active = registry.getActiveFarmerPolicies(farmer);
+        assertEq(active.length, 1);
+        assertEq(active[0], id2);
+    }
+
+    // Additional test for edge case
 
     function test_GetFarmerPolicies() public {
         bytes32 id1 = _registerPolicy();
