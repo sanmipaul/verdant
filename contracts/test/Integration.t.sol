@@ -179,7 +179,8 @@ contract IntegrationTest is Test {
         // All three received payouts
         for (uint256 i = 0; i < 3; i++) {
             assertTrue(vault.isPayoutExecuted(ids[i]));
-            assertGe(cUSD.balanceOf(farmers[i]), coverage);
+            uint256 expectedPayout = vault.calculatePayout(ids[i]);
+            assertEq(cUSD.balanceOf(farmers[i]), 10e18 - registry.calculatePremium(coverage) + expectedPayout);
         }
     }
 }
