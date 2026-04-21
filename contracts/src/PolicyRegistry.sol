@@ -120,6 +120,9 @@ contract PolicyRegistry {
         // Transfer premium to pool
         cUSD.transferFrom(msg.sender, address(premiumPool), premium);
 
+        // Cache current timestamp
+        uint40 currentTime = uint40(block.timestamp);
+
         policies[policyId] = Policy({
             policyId: policyId,
             farmer: msg.sender,
@@ -128,7 +131,7 @@ contract PolicyRegistry {
             coverageType: coverageType,
             coverageAmount: coverageAmount,
             premiumPaid: premium,
-            startDate: uint40(block.timestamp),
+            startDate: currentTime,
             endDate: endDate,
             status: PolicyStatus.ACTIVE
         });
