@@ -107,6 +107,9 @@ contract WeatherOracle {
     }
 
     /// @notice Check if the consensus is reliable (variance below threshold).
+    /// @param eventId The event ID
+    /// @param threshold Maximum allowed variance
+    /// @return True if variance <= threshold
     function isConsensusReliable(bytes32 eventId, int256 threshold) external view returns (bool) {
         ApiData[] memory sources = events[eventId].sources;
         if (sources.length < 2) return true; // single source is reliable
