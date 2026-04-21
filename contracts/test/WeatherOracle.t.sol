@@ -59,6 +59,25 @@ contract WeatherOracleTest is Test {
         assertEq(e.sources.length, 2);
     }
 
+    function test_GetEventSources() public {
+        WeatherOracle.ApiData[] memory apiData = new WeatherOracle.ApiData[](2);
+        apiData[0] = WeatherOracle.ApiData("open-meteo", 1500, uint40(block.timestamp));
+        apiData[1] = WeatherOracle.ApiData("nasa-power", 1600, uint40(block.timestamp));
+
+        vm.prank(agent);
+        bytes32 eventId = oracle.recordEvent(
+            LAT, LNG,
+            WeatherOracle.EventType.DROUGHT,
+            apiData,
+            uint40(block.timestamp)
+        );
+
+        WeatherOracle.ApiData[] memory sources = oracle.getEventSources(eventId);
+        assertEq(sources.length, 2);
+        assertEq(sources[0].value, 1500);
+        assertEq(sources[1].value, 1600);
+    }
+
     function test_GetRegionEvents() public {
         vm.startPrank(agent);
         oracle.recordEvent(LAT, LNG, WeatherOracle.EventType.DROUGHT, 1500, uint40(block.timestamp), "open-meteo");
