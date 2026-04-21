@@ -167,6 +167,10 @@ contract WeatherOracle {
     }
 
     /// @notice Record when a weather threshold is triggered for an event.
+    /// @param eventId The event ID that triggered the threshold
+    /// @param eventType The type of weather event
+    /// @param value The measured value that triggered the threshold
+    /// @param threshold The threshold value that was breached
     function recordThresholdTrigger(
         bytes32 eventId,
         EventType eventType,
