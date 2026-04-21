@@ -151,6 +151,11 @@ contract WeatherOracle {
     }
 
     /// @notice Record consensus calculation results for transparency.
+    /// @param eventId The event ID this consensus relates to
+    /// @param sourcesUsed Number of API sources used in consensus
+    /// @param finalTemperature Final consensus temperature
+    /// @param finalRainfall Final consensus rainfall
+    /// @param timestamp Unix timestamp
     function recordConsensus(
         bytes32 eventId,
         uint256 sourcesUsed,
