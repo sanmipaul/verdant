@@ -108,6 +108,7 @@ contract IntegrationTest is Test {
     }
 
     function test_MultipleRegionsIndependent() public {
+        // Test that events in one region do not affect policies in another
         // Farmer1 in Nairobi, Farmer2 in Lagos (different region)
         int256 lagosLat = 6452200;
         int256 lagosLng = 3395800;
