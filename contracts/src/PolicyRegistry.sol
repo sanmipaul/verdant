@@ -209,6 +209,7 @@ contract PolicyRegistry {
     }
 
     /// @notice Check if a policy is expired.
+    /// @dev Considers both explicit EXPIRED status and time-based expiration.
     function isPolicyExpired(bytes32 policyId) external view returns (bool) {
         Policy memory p = policies[policyId];
         return p.status == PolicyStatus.EXPIRED || (p.status == PolicyStatus.ACTIVE && block.timestamp > p.endDate);
