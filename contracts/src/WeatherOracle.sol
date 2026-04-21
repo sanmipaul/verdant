@@ -34,6 +34,8 @@ contract WeatherOracle {
     uint256 public totalApiCalls;
     uint256 public lastHeartbeatTimestamp;
     uint256 public eventsToday;
+    uint256 public totalApiFailures;
+    uint256 public totalSystemAlerts;
 
     event WeatherEventRecorded(
         bytes32 indexed eventId,
