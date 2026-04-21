@@ -53,6 +53,7 @@ contract IntegrationTest is Test {
     }
 
     function test_FullDroughtLifecycle() public {
+        // Test the complete insurance lifecycle from registration to payout
         // 1. Farmer registers drought coverage
         uint256 coverage = 30e18;
         uint256 premium  = registry.calculatePremium(coverage);
