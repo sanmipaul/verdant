@@ -68,6 +68,8 @@ contract WeatherOracle {
         ApiData[] calldata apiData,
         uint40 timestamp
     ) external onlyAgent returns (bytes32 eventId) {
+        require(apiData.length >= MIN_SOURCES, "Insufficient sources");
+
         eventId = keccak256(abi.encodePacked(lat, lng, eventType, timestamp));
 
         if (events[eventId].timestamp != 0) revert EventAlreadyExists();
