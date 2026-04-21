@@ -175,6 +175,14 @@ export function RegisterPolicyForm({ onSuccess }: Props) {
               placeholder="Latitude (e.g. 1.2921)"
               value={latDeg}
               onChange={(e) => setLatDeg(e.target.value)}
+              onBlur={() => {
+                const lat = parseFloat(latDeg);
+                if (latDeg && (isNaN(lat) || lat < -90 || lat > 90)) {
+                  setValidationErrors(prev => ({ ...prev, lat: "Please enter a valid latitude (-90 to 90)" }));
+                } else {
+                  setValidationErrors(prev => ({ ...prev, lat: "" }));
+                }
+              }}
               required
               aria-label="Farm latitude in degrees"
               aria-describedby={validationErrors.lat ? "lat-error" : undefined}
@@ -191,6 +199,14 @@ export function RegisterPolicyForm({ onSuccess }: Props) {
               placeholder="Longitude (e.g. 36.8219)"
               value={lngDeg}
               onChange={(e) => setLngDeg(e.target.value)}
+              onBlur={() => {
+                const lng = parseFloat(lngDeg);
+                if (lngDeg && (isNaN(lng) || lng < -180 || lng > 180)) {
+                  setValidationErrors(prev => ({ ...prev, lng: "Please enter a valid longitude (-180 to 180)" }));
+                } else {
+                  setValidationErrors(prev => ({ ...prev, lng: "" }));
+                }
+              }}
               required
               aria-label="Farm longitude in degrees"
               aria-describedby={validationErrors.lng ? "lng-error" : undefined}
