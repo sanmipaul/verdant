@@ -321,7 +321,7 @@ export function RegisterPolicyForm({ onSuccess }: Props) {
       <button
         type="submit"
         disabled={isSubmitting || !premiumWei}
-        className="w-full bg-verdant-600 hover:bg-verdant-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold py-3.5 rounded-2xl text-sm transition-colors flex items-center justify-center gap-2"
+        className="w-full bg-gradient-to-r from-verdant-600 to-verdant-700 hover:from-verdant-700 hover:to-verdant-800 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold py-3.5 rounded-2xl text-sm transition-all duration-200 flex items-center justify-center gap-2 shadow-lg hover:shadow-xl transform hover:scale-[1.02] active:scale-[0.98]"
       >
         {isSubmitting && (
           <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
