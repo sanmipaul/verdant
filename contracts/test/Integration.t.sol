@@ -90,8 +90,9 @@ contract IntegrationTest is Test {
         vm.prank(agent);
         vault.triggerPayout(policyId);
 
-        // 5. Farmer received coverage
-        assertEq(cUSD.balanceOf(farmer1), balanceBefore + coverage);
+        // 5. Farmer received coverage (proportional to premium paid)
+        uint256 expectedPayout = vault.calculatePayout(policyId);
+        assertEq(cUSD.balanceOf(farmer1), balanceBefore + expectedPayout);
 
         // 6. Policy status is CLAIMED
         PolicyRegistry.Policy memory p = registry.getPolicy(policyId);
