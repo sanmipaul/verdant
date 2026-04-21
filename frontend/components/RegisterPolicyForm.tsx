@@ -313,7 +313,7 @@ export function RegisterPolicyForm({ onSuccess }: Props) {
       )}
 
       {error && (
-        <p className="text-red-500 text-xs bg-red-50 rounded-xl px-3 py-2">
+        <p className="text-red-500 text-xs bg-red-50 rounded-xl px-3 py-2 border border-red-200 animate-in slide-in-from-top-2 duration-300">
           {error}
         </p>
       )}
