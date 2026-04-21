@@ -41,7 +41,8 @@ contract WeatherOracle {
         bytes32 indexed regionHash,
         EventType eventType,
         int256 value,
-        uint40 timestamp
+        uint40 timestamp,
+        uint256 sourceCount
     );
 
     error Unauthorized();
