@@ -150,20 +150,34 @@ export function RegisterPolicyForm({ onSuccess }: Props) {
           </button>
         </div>
         <div className="grid grid-cols-2 gap-2">
-          <input
-            placeholder="Latitude (e.g. 1.2921)"
-            value={latDeg}
-            onChange={(e) => setLatDeg(e.target.value)}
-            required
-            className="border border-gray-200 rounded-xl px-3 py-2.5 text-sm w-full focus:outline-none focus:ring-2 focus:ring-verdant-400"
-          />
-          <input
-            placeholder="Longitude (e.g. 36.8219)"
-            value={lngDeg}
-            onChange={(e) => setLngDeg(e.target.value)}
-            required
-            className="border border-gray-200 rounded-xl px-3 py-2.5 text-sm w-full focus:outline-none focus:ring-2 focus:ring-verdant-400"
-          />
+          <div>
+            <input
+              placeholder="Latitude (e.g. 1.2921)"
+              value={latDeg}
+              onChange={(e) => setLatDeg(e.target.value)}
+              required
+              className={`border rounded-xl px-3 py-2.5 text-sm w-full focus:outline-none focus:ring-2 ${
+                validationErrors.lat ? "border-red-300 focus:ring-red-400" : "border-gray-200 focus:ring-verdant-400"
+              }`}
+            />
+            {validationErrors.lat && (
+              <p className="text-red-500 text-xs mt-1">{validationErrors.lat}</p>
+            )}
+          </div>
+          <div>
+            <input
+              placeholder="Longitude (e.g. 36.8219)"
+              value={lngDeg}
+              onChange={(e) => setLngDeg(e.target.value)}
+              required
+              className={`border rounded-xl px-3 py-2.5 text-sm w-full focus:outline-none focus:ring-2 ${
+                validationErrors.lng ? "border-red-300 focus:ring-red-400" : "border-gray-200 focus:ring-verdant-400"
+              }`}
+            />
+            {validationErrors.lng && (
+              <p className="text-red-500 text-xs mt-1">{validationErrors.lng}</p>
+            )}
+          </div>
         </div>
       </div>
 
