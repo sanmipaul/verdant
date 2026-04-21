@@ -10,6 +10,7 @@ import {MockERC20} from "./mocks/MockERC20.sol";
 
 /// @notice End-to-end test simulating the full parametric insurance lifecycle:
 ///         register → weather event → mark claimed → payout → audit trail
+/// @dev Updated to use multiple API sources for weather events.
 contract IntegrationTest is Test {
     PolicyRegistry registry;
     PremiumPool pool;
