@@ -181,6 +181,26 @@ contract PolicyRegistry {
         return farmerPolicies[farmer];
     }
 
+    /// @notice Get active (non-expired) policy IDs for a farmer.
+    function getActiveFarmerPolicies(address farmer) external view returns (bytes32[] memory) {
+        bytes32[] memory all = farmerPolicies[farmer];
+        uint256 count = 0;
+        for (uint256 i = 0; i < all.length; i++) {
+            if (!this.isPolicyExpired(all[i])) {
+                count++;
+            }
+        }
+        bytes32[] memory active = new bytes32[](count);
+        uint256 j = 0;
+        for (uint256 i = 0; i < all.length; i++) {
+            if (!this.isPolicyExpired(all[i])) {
+                active[j] = all[i];
+                j++;
+            }
+        }
+        return active;
+    }
+
     /// @notice Get a policy by ID.
     function getPolicy(bytes32 policyId) external view returns (Policy memory) {
         return policies[policyId];
