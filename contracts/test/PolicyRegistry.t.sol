@@ -91,6 +91,20 @@ contract PolicyRegistryTest is Test {
         assertEq(uint8(p.status), uint8(PolicyRegistry.PolicyStatus.CLAIMED));
     }
 
+    function test_MarkClaimed_AutoExpire() public {
+        bytes32 policyId = _registerPolicy();
+
+        // Warp past end date
+        vm.warp(block.timestamp + DURATION + 1);
+
+        vm.expectRevert(PolicyRegistry.PolicyNotActive.selector);
+        vm.prank(agent);
+        registry.markClaimed(policyId);
+
+        PolicyRegistry.Policy memory p = registry.getPolicy(policyId);
+        assertEq(uint8(p.status), uint8(PolicyRegistry.PolicyStatus.EXPIRED));
+    }
+
     function test_CannotClaimTwice() public {
         bytes32 policyId = _registerPolicy();
 
