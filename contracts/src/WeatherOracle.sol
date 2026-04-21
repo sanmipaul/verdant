@@ -29,6 +29,9 @@ contract WeatherOracle {
     // region hash => list of event IDs (region = keccak256(lat, lng, 50km grid))
     mapping(bytes32 => bytes32[]) public regionEvents;
 
+    // Gas optimization: cache total events
+    uint256 public totalEventsRecorded;
+
     event WeatherEventRecorded(
         bytes32 indexed eventId,
         bytes32 indexed regionHash,
@@ -73,6 +76,8 @@ contract WeatherOracle {
 
         bytes32 regionHash = _regionHash(lat, lng);
         regionEvents[regionHash].push(eventId);
+
+        totalEventsRecorded++;
 
         emit WeatherEventRecorded(eventId, regionHash, eventType, value, timestamp);
     }
