@@ -95,6 +95,11 @@ contract WeatherOracle {
         return events[eventId];
     }
 
+    /// @notice Get the API sources for a weather event.
+    function getEventSources(bytes32 eventId) external view returns (ApiData[] memory) {
+        return events[eventId].sources;
+    }
+
     /// @notice Get all event IDs for a geographic region.
     function getRegionEvents(int256 lat, int256 lng) external view returns (bytes32[] memory) {
         return regionEvents[_regionHash(lat, lng)];
