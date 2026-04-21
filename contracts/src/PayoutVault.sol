@@ -7,6 +7,7 @@ import {PremiumPool} from "./PremiumPool.sol";
 /// @title PayoutVault
 /// @notice Receives trigger signals from the authorized Cloudflare agent and
 ///         executes cUSD payouts by pulling funds from PremiumPool.
+/// @dev Gas optimizations: unchecked loops, cached lengths, minimized SLOADs
 contract PayoutVault {
     PolicyRegistry public immutable registry;
     PremiumPool public immutable pool;
