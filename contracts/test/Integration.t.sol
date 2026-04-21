@@ -150,6 +150,7 @@ contract IntegrationTest is Test {
     }
 
     function test_BatchPayoutForRegionWideEvent() public {
+        // Test batch payout for multiple policies affected by a region-wide event
         uint256 coverage = 10e18;
         uint40  endDate  = uint40(block.timestamp + 60 days);
 
