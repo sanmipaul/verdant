@@ -1,5 +1,10 @@
 "use client";
 
+// TODO: Add form persistence to localStorage to prevent data loss on page refresh
+// TODO: Implement progressive enhancement for GPS location with fallback to manual input
+// TODO: Add unit tests for form validation logic
+// TODO: Consider adding a map integration for visual location selection
+
 import { useState } from "react";
 import { useWriteContract, useReadContract } from "wagmi";
 import { parseUnits } from "viem";
@@ -27,6 +32,7 @@ export function RegisterPolicyForm({ onSuccess }: Props) {
   const [durationMonths, setDurationMonths] = useState(3);
   const [step, setStep] = useState<Step>("idle");
   const [error, setError] = useState("");
+  const [validationErrors, setValidationErrors] = useState<{[key: string]: string}>({});
 
   const coverageAmountWei = parseUnits(coverageAmountCUSD || "0", 18);
 
@@ -42,6 +48,35 @@ export function RegisterPolicyForm({ onSuccess }: Props) {
 
   const { writeContractAsync } = useWriteContract();
 
+  function validateForm() {
+    const errors: {[key: string]: string} = {};
+    const lat = parseFloat(latDeg);
+    const lng = parseFloat(lngDeg);
+    const coverage = parseFloat(coverageAmountCUSD);
+
+    if (!latDeg || isNaN(lat) || lat < -90 || lat > 90) {
+      errors.lat = "Please enter a valid latitude (-90 to 90)";
+    }
+    if (!lngDeg || isNaN(lng) || lng < -180 || lng > 180) {
+      errors.lng = "Please enter a valid longitude (-180 to 180)";
+    }
+    if (!coverageAmountCUSD || isNaN(coverage) || coverage < 1 || coverage > 50) {
+      errors.coverage = "Coverage must be between 1 and 50 cUSD";
+    }
+    if (durationMonths < 1 || durationMonths > 12) {
+      errors.duration = "Duration must be between 1 and 12 months";
+    }
+
+    setValidationErrors(errors);
+    // Focus first error field
+    if (errors.lat) {
+      setTimeout(() => document.querySelector('input[aria-label="Farm latitude in degrees"]')?.focus(), 100);
+    } else if (errors.lng) {
+      setTimeout(() => document.querySelector('input[aria-label="Farm longitude in degrees"]')?.focus(), 100);
+    }
+    return Object.keys(errors).length === 0;
+  }
+
   function detectLocation() {
     if (!navigator.geolocation) return;
     navigator.geolocation.getCurrentPosition(
@@ -55,7 +90,7 @@ export function RegisterPolicyForm({ onSuccess }: Props) {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!premiumWei || !latDeg || !lngDeg) return;
+    if (!validateForm() || !premiumWei) return;
     setError("");
 
     const latScaled = BigInt(Math.round(parseFloat(latDeg) * 1e6));
@@ -81,6 +116,15 @@ export function RegisterPolicyForm({ onSuccess }: Props) {
       });
 
       setStep("done");
+      setValidationErrors({});
+      // Reset form after 3 seconds
+      setTimeout(() => {
+        setLatDeg("");
+        setLngDeg("");
+        setCoverageAmountCUSD("10");
+        setDurationMonths(3);
+        setStep("idle");
+      }, 3000);
       setTimeout(onSuccess, 1500);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Transaction failed.");
@@ -90,13 +134,13 @@ export function RegisterPolicyForm({ onSuccess }: Props) {
 
   if (step === "done") {
     return (
-      <div className="text-center py-14">
-        <div className="text-5xl mb-3">✅</div>
-        <p className="font-semibold text-verdant-700 text-lg">
-          Policy Registered!
+      <div className="text-center py-14 bg-green-50 rounded-2xl border border-green-200 animate-in fade-in-0 zoom-in-95 duration-300">
+        <div className="text-6xl mb-4 animate-bounce">✅</div>
+        <p className="font-semibold text-green-800 text-lg animate-in slide-in-from-bottom-2 duration-500 delay-150">
+          Policy Registered Successfully!
         </p>
-        <p className="text-sm text-gray-400 mt-1">
-          Your coverage is now active.
+        <p className="text-sm text-green-600 mt-2 animate-in slide-in-from-bottom-2 duration-500 delay-300">
+          Your coverage is now active and will be monitored automatically.
         </p>
       </div>
     );
@@ -105,7 +149,7 @@ export function RegisterPolicyForm({ onSuccess }: Props) {
   const isSubmitting = step === "approving" || step === "registering";
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-5">
+    <form onSubmit={handleSubmit} className="space-y-5 max-w-md mx-auto">
       <div className="bg-verdant-50 border border-verdant-100 rounded-2xl p-4 text-sm text-verdant-800 leading-relaxed">
         Payouts are automatic — the AI agent monitors your region daily and
         sends cUSD directly to your wallet when a threshold is breached.
@@ -117,29 +161,68 @@ export function RegisterPolicyForm({ onSuccess }: Props) {
           <label className="text-sm font-medium text-gray-700">
             Farm Location
           </label>
-          <button
-            type="button"
-            onClick={detectLocation}
-            className="text-xs text-verdant-600 underline"
-          >
-            Use my location
-          </button>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-gray-400">
+              Enter coordinates or use GPS
+            </span>
+            <button
+              type="button"
+              onClick={detectLocation}
+              className="text-xs text-verdant-600 underline"
+            >
+              Use my location
+            </button>
+          </div>
         </div>
         <div className="grid grid-cols-2 gap-2">
-          <input
-            placeholder="Latitude (e.g. 1.2921)"
-            value={latDeg}
-            onChange={(e) => setLatDeg(e.target.value)}
-            required
-            className="border border-gray-200 rounded-xl px-3 py-2.5 text-sm w-full focus:outline-none focus:ring-2 focus:ring-verdant-400"
-          />
-          <input
-            placeholder="Longitude (e.g. 36.8219)"
-            value={lngDeg}
-            onChange={(e) => setLngDeg(e.target.value)}
-            required
-            className="border border-gray-200 rounded-xl px-3 py-2.5 text-sm w-full focus:outline-none focus:ring-2 focus:ring-verdant-400"
-          />
+          <div>
+            <input
+              placeholder="Latitude (e.g. 1.2921)"
+              value={latDeg}
+              onChange={(e) => setLatDeg(e.target.value)}
+              onBlur={() => {
+                const lat = parseFloat(latDeg);
+                if (latDeg && (isNaN(lat) || lat < -90 || lat > 90)) {
+                  setValidationErrors(prev => ({ ...prev, lat: "Please enter a valid latitude (-90 to 90)" }));
+                } else {
+                  setValidationErrors(prev => ({ ...prev, lat: "" }));
+                }
+              }}
+              required
+              aria-label="Farm latitude in degrees"
+              aria-describedby={validationErrors.lat ? "lat-error" : undefined}
+              className={`border rounded-xl px-3 py-2.5 text-sm w-full focus:outline-none focus:ring-2 ${
+                validationErrors.lat ? "border-red-300 focus:ring-red-400" : "border-gray-200 focus:ring-verdant-400"
+              }`}
+            />
+            {validationErrors.lat && (
+              <p id="lat-error" className="text-red-500 text-xs mt-1">{validationErrors.lat}</p>
+            )}
+          </div>
+          <div>
+            <input
+              placeholder="Longitude (e.g. 36.8219)"
+              value={lngDeg}
+              onChange={(e) => setLngDeg(e.target.value)}
+              onBlur={() => {
+                const lng = parseFloat(lngDeg);
+                if (lngDeg && (isNaN(lng) || lng < -180 || lng > 180)) {
+                  setValidationErrors(prev => ({ ...prev, lng: "Please enter a valid longitude (-180 to 180)" }));
+                } else {
+                  setValidationErrors(prev => ({ ...prev, lng: "" }));
+                }
+              }}
+              required
+              aria-label="Farm longitude in degrees"
+              aria-describedby={validationErrors.lng ? "lng-error" : undefined}
+              className={`border rounded-xl px-3 py-2.5 text-sm w-full focus:outline-none focus:ring-2 ${
+                validationErrors.lng ? "border-red-300 focus:ring-red-400" : "border-gray-200 focus:ring-verdant-400"
+              }`}
+            />
+            {validationErrors.lng && (
+              <p id="lng-error" className="text-red-500 text-xs mt-1">{validationErrors.lng}</p>
+            )}
+          </div>
         </div>
       </div>
 
@@ -154,6 +237,9 @@ export function RegisterPolicyForm({ onSuccess }: Props) {
               key={i}
               type="button"
               onClick={() => setCoverageType(i)}
+              tabIndex={0}
+              role="radio"
+              aria-checked={coverageType === i}
               className={`text-left p-3 rounded-xl border text-sm transition-colors ${
                 coverageType === i
                   ? "border-verdant-500 bg-verdant-50 text-verdant-800"
@@ -180,6 +266,9 @@ export function RegisterPolicyForm({ onSuccess }: Props) {
               key={amount}
               type="button"
               onClick={() => setCoverageAmountCUSD(amount)}
+              tabIndex={0}
+              role="radio"
+              aria-checked={coverageAmountCUSD === amount}
               className={`flex-1 py-2.5 rounded-xl border text-sm font-medium transition-colors ${
                 coverageAmountCUSD === amount
                   ? "border-verdant-500 bg-verdant-50 text-verdant-700"
@@ -190,6 +279,9 @@ export function RegisterPolicyForm({ onSuccess }: Props) {
             </button>
           ))}
         </div>
+        {validationErrors.coverage && (
+          <p className="text-red-500 text-xs mt-1">{validationErrors.coverage}</p>
+        )}
       </div>
 
       {/* Duration */}
@@ -203,6 +295,9 @@ export function RegisterPolicyForm({ onSuccess }: Props) {
               key={months}
               type="button"
               onClick={() => setDurationMonths(months)}
+              tabIndex={0}
+              role="radio"
+              aria-checked={durationMonths === months}
               className={`flex-1 py-2.5 rounded-xl border text-sm font-medium transition-colors ${
                 durationMonths === months
                   ? "border-verdant-500 bg-verdant-50 text-verdant-700"
@@ -213,11 +308,14 @@ export function RegisterPolicyForm({ onSuccess }: Props) {
             </button>
           ))}
         </div>
+        {validationErrors.duration && (
+          <p className="text-red-500 text-xs mt-1">{validationErrors.duration}</p>
+        )}
       </div>
 
       {/* Summary */}
-      {premiumWei !== undefined && (
-        <div className="bg-gray-50 rounded-2xl p-4 space-y-1.5 text-sm">
+      {premiumWei !== undefined ? (
+        <div className="bg-gray-50 rounded-2xl p-4 space-y-1.5 text-sm animate-in fade-in-0 duration-300">
           <div className="flex justify-between">
             <span className="text-gray-500">Coverage payout</span>
             <span className="font-medium">{coverageAmountCUSD} cUSD</span>
@@ -233,10 +331,14 @@ export function RegisterPolicyForm({ onSuccess }: Props) {
             <span className="font-medium">{durationMonths} month(s)</span>
           </div>
         </div>
-      )}
+      ) : coverageAmountWei > 0n ? (
+        <div className="bg-gray-50 rounded-2xl p-4 text-center text-sm text-gray-500 animate-pulse">
+          Calculating premium...
+        </div>
+      ) : null}
 
       {error && (
-        <p className="text-red-500 text-xs bg-red-50 rounded-xl px-3 py-2">
+        <p className="text-red-500 text-xs bg-red-50 rounded-xl px-3 py-2 border border-red-200 animate-in slide-in-from-top-2 duration-300">
           {error}
         </p>
       )}
@@ -244,8 +346,11 @@ export function RegisterPolicyForm({ onSuccess }: Props) {
       <button
         type="submit"
         disabled={isSubmitting || !premiumWei}
-        className="w-full bg-verdant-600 hover:bg-verdant-700 disabled:opacity-50 text-white font-semibold py-3.5 rounded-2xl text-sm transition-colors"
+        className="w-full bg-gradient-to-r from-verdant-600 to-verdant-700 hover:from-verdant-700 hover:to-verdant-800 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold py-3.5 rounded-2xl text-sm transition-all duration-200 flex items-center justify-center gap-2 shadow-lg hover:shadow-xl transform hover:scale-[1.02] active:scale-[0.98]"
       >
+        {isSubmitting && (
+          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+        )}
         {step === "approving"
           ? "Approving cUSD spend..."
           : step === "registering"

@@ -7,11 +7,15 @@ import {PremiumPool} from "./PremiumPool.sol";
 /// @title PayoutVault
 /// @notice Receives trigger signals from the authorized Cloudflare agent and
 ///         executes cUSD payouts by pulling funds from PremiumPool.
+/// @dev Fixed: Payout amounts now calculated proportionally to premium paid.
 contract PayoutVault {
     PolicyRegistry public immutable registry;
     PremiumPool public immutable pool;
     address public immutable owner;
     address public authorizedAgent;
+
+    // Minimum premium: 0.50 cUSD (18 decimals)
+    uint256 public constant MIN_PREMIUM = 0.5e18;
 
     // policyId => whether a payout has been executed (prevents double-payout)
     mapping(bytes32 => bool) public payoutExecuted;
@@ -56,9 +60,12 @@ contract PayoutVault {
 
         payoutExecuted[policyId] = true;
 
-        pool.withdrawForPayout(p.coverageAmount, p.farmer);
+        // Calculate payout proportional to premium paid relative to minimum premium
+        uint256 amount = p.premiumPaid == 0 ? 0 : p.coverageAmount * p.premiumPaid / MIN_PREMIUM;
 
-        emit PayoutExecuted(policyId, p.farmer, p.coverageAmount);
+        pool.withdrawForPayout(amount, p.farmer);
+
+        emit PayoutExecuted(policyId, p.farmer, amount);
     }
 
     /// @notice Batch payout for multiple triggered policies in a single transaction.
@@ -75,12 +82,14 @@ contract PayoutVault {
             if (p.status != PolicyRegistry.PolicyStatus.CLAIMED) continue;
 
             payoutExecuted[policyId] = true;
-            totalAmount += p.coverageAmount;
+            // Calculate payout proportional to premium paid relative to minimum premium
+            uint256 amount = p.premiumPaid == 0 ? 0 : p.coverageAmount * p.premiumPaid / MIN_PREMIUM;
+            totalAmount += amount;
             count++;
 
-            pool.withdrawForPayout(p.coverageAmount, p.farmer);
+            pool.withdrawForPayout(amount, p.farmer);
 
-            emit PayoutExecuted(policyId, p.farmer, p.coverageAmount);
+            emit PayoutExecuted(policyId, p.farmer, amount);
         }
 
         if (count > 0) {
@@ -91,5 +100,13 @@ contract PayoutVault {
     /// @notice Check if a payout has been executed for a policy.
     function isPayoutExecuted(bytes32 policyId) external view returns (bool) {
         return payoutExecuted[policyId];
+    }
+
+    /// @notice Calculate the payout amount for a policy.
+    /// @dev Returns 0 if premiumPaid is 0 to avoid division issues, though MIN_PREMIUM > 0.
+    function calculatePayout(bytes32 policyId) external view returns (uint256) {
+        PolicyRegistry.Policy memory p = registry.getPolicy(policyId);
+        if (p.premiumPaid == 0) return 0;
+        return p.coverageAmount * p.premiumPaid / MIN_PREMIUM;
     }
 }
