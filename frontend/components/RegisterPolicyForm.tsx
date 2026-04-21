@@ -138,7 +138,7 @@ export function RegisterPolicyForm({ onSuccess }: Props) {
   const isSubmitting = step === "approving" || step === "registering";
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-5">
+    <form onSubmit={handleSubmit} className="space-y-5 max-w-md mx-auto">
       <div className="bg-verdant-50 border border-verdant-100 rounded-2xl p-4 text-sm text-verdant-800 leading-relaxed">
         Payouts are automatic — the AI agent monitors your region daily and
         sends cUSD directly to your wallet when a threshold is breached.
