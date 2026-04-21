@@ -63,6 +63,12 @@ export function RegisterPolicyForm({ onSuccess }: Props) {
     }
 
     setValidationErrors(errors);
+    // Focus first error field
+    if (errors.lat) {
+      setTimeout(() => document.querySelector('input[aria-label="Farm latitude in degrees"]')?.focus(), 100);
+    } else if (errors.lng) {
+      setTimeout(() => document.querySelector('input[aria-label="Farm longitude in degrees"]')?.focus(), 100);
+    }
     return Object.keys(errors).length === 0;
   }
 
