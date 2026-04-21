@@ -288,8 +288,11 @@ export function RegisterPolicyForm({ onSuccess }: Props) {
       <button
         type="submit"
         disabled={isSubmitting || !premiumWei}
-        className="w-full bg-verdant-600 hover:bg-verdant-700 disabled:opacity-50 text-white font-semibold py-3.5 rounded-2xl text-sm transition-colors"
+        className="w-full bg-verdant-600 hover:bg-verdant-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold py-3.5 rounded-2xl text-sm transition-colors flex items-center justify-center gap-2"
       >
+        {isSubmitting && (
+          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+        )}
         {step === "approving"
           ? "Approving cUSD spend..."
           : step === "registering"
