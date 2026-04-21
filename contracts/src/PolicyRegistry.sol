@@ -184,7 +184,7 @@ contract PolicyRegistry {
     }
 
     /// @notice Get active (non-expired) policy IDs for a farmer.
-    /// @dev Filters out expired policies dynamically.
+    /// @dev Filters out expired policies dynamically. Returns only ACTIVE policies not past endDate.
     function getActiveFarmerPolicies(address farmer) external view returns (bytes32[] memory) {
         bytes32[] memory all = farmerPolicies[farmer];
         uint256 count = 0;
