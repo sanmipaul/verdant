@@ -135,4 +135,13 @@ contract WeatherOracle {
         int256 gridLng = (lng / 450000) * 450000;
         return keccak256(abi.encodePacked(gridLat, gridLng));
     }
+
+    /// @dev Calculate consensus value from multiple API data (simple average).
+    function _calculateConsensus(ApiData[] calldata apiData) internal pure returns (int256) {
+        int256 sum = 0;
+        for (uint256 i = 0; i < apiData.length; i++) {
+            sum += apiData[i].value;
+        }
+        return sum / int256(apiData.length);
+    }
 }
