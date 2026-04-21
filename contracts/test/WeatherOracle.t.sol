@@ -41,13 +41,22 @@ contract WeatherOracleTest is Test {
         oracle.recordEvent(LAT, LNG, WeatherOracle.EventType.FLOOD, 2000, uint40(block.timestamp), "open-meteo");
     }
 
-    function test_CannotRecordDuplicateEvent() public {
-        vm.prank(agent);
-        oracle.recordEvent(LAT, LNG, WeatherOracle.EventType.DROUGHT, 1500, uint40(block.timestamp), "open-meteo");
+    function test_RecordEventWithMultipleSources() public {
+        WeatherOracle.ApiData[] memory apiData = new WeatherOracle.ApiData[](2);
+        apiData[0] = WeatherOracle.ApiData("open-meteo", 1500, uint40(block.timestamp));
+        apiData[1] = WeatherOracle.ApiData("nasa-power", 1600, uint40(block.timestamp));
 
-        vm.expectRevert(WeatherOracle.EventAlreadyExists.selector);
         vm.prank(agent);
-        oracle.recordEvent(LAT, LNG, WeatherOracle.EventType.DROUGHT, 1500, uint40(block.timestamp), "open-meteo");
+        bytes32 eventId = oracle.recordEvent(
+            LAT, LNG,
+            WeatherOracle.EventType.DROUGHT,
+            apiData,
+            uint40(block.timestamp)
+        );
+
+        WeatherOracle.WeatherEvent memory e = oracle.getEvent(eventId);
+        assertEq(e.value, 1550); // average
+        assertEq(e.sources.length, 2);
     }
 
     function test_GetRegionEvents() public {
