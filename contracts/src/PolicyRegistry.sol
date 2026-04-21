@@ -7,7 +7,7 @@ import {PremiumPool} from "./PremiumPool.sol";
 /// @title PolicyRegistry
 /// @notice Stores all crop insurance policies. Farmers register plots here,
 ///         pay premiums, and policies are tracked through their lifecycle.
-/// @dev Gas optimizations: unchecked loops, cached timestamps, assembly math, batch operations
+/// @dev Feature: Policies can auto-expire based on endDate. Added expire functions, checks, and views. Supports batch operations.
 contract PolicyRegistry {
     enum CoverageType {
         DROUGHT,
@@ -146,8 +146,11 @@ contract PolicyRegistry {
     function markClaimed(bytes32 policyId) external onlyAgent {
         Policy storage p = policies[policyId];
         if (p.status != PolicyStatus.ACTIVE) revert PolicyNotActive();
-        uint40 currentTime = uint40(block.timestamp);
-        if (currentTime > p.endDate) revert PolicyNotActive();
+        if (block.timestamp > p.endDate) {
+            p.status = PolicyStatus.EXPIRED;
+            emit PolicyExpired(policyId);
+            revert PolicyNotActive();
+        }
 
         p.status = PolicyStatus.CLAIMED;
 
@@ -173,6 +176,7 @@ contract PolicyRegistry {
     }
 
     /// @notice Expire a policy that has passed its end date.
+    /// @dev Anyone can call this to update the status.
     function expirePolicy(bytes32 policyId) external {
         Policy storage p = policies[policyId];
         if (p.status != PolicyStatus.ACTIVE) revert PolicyNotActive();
@@ -182,21 +186,16 @@ contract PolicyRegistry {
         emit PolicyExpired(policyId);
     }
 
-    /// @notice Batch expire multiple policies (gas optimized).
+    /// @notice Batch expire multiple policies that have passed their end dates.
+    /// @dev Skips policies that are not active or not expired.
     function batchExpirePolicies(bytes32[] calldata policyIds) external {
-        uint256 length = policyIds.length;
-        uint40 currentTime = uint40(block.timestamp);
-
-        for (uint256 i = 0; i < length; ) {
+        for (uint256 i = 0; i < policyIds.length; i++) {
             bytes32 policyId = policyIds[i];
             Policy storage p = policies[policyId];
-
-            if (p.status == PolicyStatus.ACTIVE && currentTime > p.endDate) {
+            if (p.status == PolicyStatus.ACTIVE && block.timestamp > p.endDate) {
                 p.status = PolicyStatus.EXPIRED;
                 emit PolicyExpired(policyId);
             }
-
-            unchecked { i++; }
         }
     }
 
@@ -205,9 +204,37 @@ contract PolicyRegistry {
         return farmerPolicies[farmer];
     }
 
+    /// @notice Get active (non-expired) policy IDs for a farmer.
+    /// @dev Filters out expired policies dynamically. Returns only ACTIVE policies not past endDate.
+    function getActiveFarmerPolicies(address farmer) external view returns (bytes32[] memory) {
+        bytes32[] memory all = farmerPolicies[farmer];
+        uint256 count = 0;
+        for (uint256 i = 0; i < all.length; i++) {
+            if (!this.isPolicyExpired(all[i])) {
+                count++;
+            }
+        }
+        bytes32[] memory active = new bytes32[](count);
+        uint256 j = 0;
+        for (uint256 i = 0; i < all.length; i++) {
+            if (!this.isPolicyExpired(all[i])) {
+                active[j] = all[i];
+                j++;
+            }
+        }
+        return active;
+    }
+
     /// @notice Get a policy by ID.
     function getPolicy(bytes32 policyId) external view returns (Policy memory) {
         return policies[policyId];
+    }
+
+    /// @notice Check if a policy is expired.
+    /// @dev Considers both explicit EXPIRED status and time-based expiration.
+    function isPolicyExpired(bytes32 policyId) external view returns (bool) {
+        Policy memory p = policies[policyId];
+        return p.status == PolicyStatus.EXPIRED || (p.status == PolicyStatus.ACTIVE && block.timestamp > p.endDate);
     }
 
     /// @notice Calculate premium for a given coverage amount.
