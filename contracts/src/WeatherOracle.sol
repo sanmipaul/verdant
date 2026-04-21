@@ -109,6 +109,9 @@ contract WeatherOracle {
         bytes32 regionHash = _regionHash(lat, lng);
         regionEvents[regionHash].push(eventId);
 
+        totalEventsRecorded++;
+        eventsToday++;
+
         emit WeatherEventRecorded(eventId, regionHash, eventType, value, timestamp);
     }
 
