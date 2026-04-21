@@ -96,21 +96,25 @@ contract WeatherOracle {
     ) external view returns (WeatherEvent[] memory) {
         bytes32 regionHash = _regionHash(lat, lng);
         bytes32[] memory ids = regionEvents[regionHash];
+        uint256 length = ids.length;
 
         // Count matching
         uint256 count;
-        for (uint256 i = 0; i < ids.length; i++) {
+        for (uint256 i = 0; i < length; ) {
             WeatherEvent storage e = events[ids[i]];
             if (e.timestamp >= from && e.timestamp <= to) count++;
+            unchecked { i++; }
         }
 
         WeatherEvent[] memory result = new WeatherEvent[](count);
         uint256 idx;
-        for (uint256 i = 0; i < ids.length; i++) {
+        for (uint256 i = 0; i < length; ) {
             WeatherEvent storage e = events[ids[i]];
             if (e.timestamp >= from && e.timestamp <= to) {
-                result[idx++] = e;
+                result[idx] = e;
+                unchecked { idx++; }
             }
+            unchecked { i++; }
         }
         return result;
     }
