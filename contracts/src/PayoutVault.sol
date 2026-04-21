@@ -103,8 +103,10 @@ contract PayoutVault {
     }
 
     /// @notice Calculate the payout amount for a policy.
+    /// @dev Returns 0 if premiumPaid is 0 to avoid division issues, though MIN_PREMIUM > 0.
     function calculatePayout(bytes32 policyId) external view returns (uint256) {
         PolicyRegistry.Policy memory p = registry.getPolicy(policyId);
+        if (p.premiumPaid == 0) return 0;
         return p.coverageAmount * p.premiumPaid / MIN_PREMIUM;
     }
 }
