@@ -27,6 +27,7 @@ export function RegisterPolicyForm({ onSuccess }: Props) {
   const [durationMonths, setDurationMonths] = useState(3);
   const [step, setStep] = useState<Step>("idle");
   const [error, setError] = useState("");
+  const [validationErrors, setValidationErrors] = useState<{[key: string]: string}>({});
 
   const coverageAmountWei = parseUnits(coverageAmountCUSD || "0", 18);
 
