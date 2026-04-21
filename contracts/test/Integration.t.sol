@@ -67,13 +67,16 @@ contract IntegrationTest is Test {
         // 2. Agent records a drought weather event after 30 days
         vm.warp(block.timestamp + 30 days);
 
+        WeatherOracle.ApiData[] memory apiData = new WeatherOracle.ApiData[](2);
+        apiData[0] = WeatherOracle.ApiData("open-meteo", 1500, uint40(block.timestamp));
+        apiData[1] = WeatherOracle.ApiData("nasa-power", 1400, uint40(block.timestamp));
+
         vm.prank(agent);
         oracle.recordEvent(
             LAT, LNG,
             WeatherOracle.EventType.DROUGHT,
-            1500,           // 15.00mm rainfall (below 20mm threshold) × 100
-            uint40(block.timestamp),
-            "open-meteo"
+            apiData,
+            uint40(block.timestamp)
         );
 
         // 3. Agent marks policy as claimed
