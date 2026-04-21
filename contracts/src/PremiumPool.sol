@@ -7,6 +7,7 @@ import {IERC20} from "forge-std/interfaces/IERC20.sol";
 /// @notice Holds all collected premiums and protocol reserve.
 ///         Only the PayoutVault can withdraw funds for payouts.
 ///         The owner can deposit reserve capital.
+/// @dev Gas optimizations: cached balance checks, batch operations, unchecked loops
 contract PremiumPool {
     IERC20 public immutable cUSD;
     address public immutable owner;
