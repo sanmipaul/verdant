@@ -166,6 +166,7 @@ contract PolicyRegistry {
     }
 
     /// @notice Batch expire multiple policies that have passed their end dates.
+    /// @dev Skips policies that are not active or not expired.
     function batchExpirePolicies(bytes32[] calldata policyIds) external {
         for (uint256 i = 0; i < policyIds.length; i++) {
             bytes32 policyId = policyIds[i];
