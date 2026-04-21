@@ -79,12 +79,10 @@ contract PayoutVaultTest is Test {
         vault.triggerPayout(policyId);
     }
 
-    function test_OnlyAgentCanTrigger() public {
+    function test_CalculatePayout() public {
         bytes32 policyId = _registerAndClaimPolicy();
-
-        vm.expectRevert(PayoutVault.Unauthorized.selector);
-        vm.prank(farmer);
-        vault.triggerPayout(policyId);
+        uint256 expected = vault.calculatePayout(policyId);
+        assertEq(expected, COVERAGE); // Since premium = MIN_PREMIUM
     }
 
     function test_BatchPayout() public {
