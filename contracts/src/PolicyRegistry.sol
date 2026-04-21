@@ -182,6 +182,12 @@ contract PolicyRegistry {
         return policies[policyId];
     }
 
+    /// @notice Check if a policy is expired.
+    function isPolicyExpired(bytes32 policyId) external view returns (bool) {
+        Policy memory p = policies[policyId];
+        return p.status == PolicyStatus.EXPIRED || (p.status == PolicyStatus.ACTIVE && block.timestamp > p.endDate);
+    }
+
     /// @notice Calculate premium for a given coverage amount.
     ///         Premium = 1% of coverage amount, minimum 0.50 cUSD.
     function _calculatePremium(uint256 coverageAmount) internal pure returns (uint256) {
