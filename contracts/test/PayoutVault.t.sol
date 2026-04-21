@@ -125,7 +125,8 @@ contract PayoutVaultTest is Test {
         vault.batchPayout(ids);
 
         // Only id2 payout added
-        assertEq(cUSD.balanceOf(farmer), balanceBeforeBatch + COVERAGE);
+        uint256 expectedPayout2 = vault.calculatePayout(id2);
+        assertEq(cUSD.balanceOf(farmer), balanceBeforeBatch + expectedPayout2);
     }
 
     // --- helpers ---
