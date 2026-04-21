@@ -30,6 +30,9 @@ contract WeatherOracle {
 
     address public immutable agent;
 
+    // Minimum number of API sources required for consensus
+    uint256 public constant MIN_SOURCES = 2;
+
     // eventId => WeatherEvent
     mapping(bytes32 => WeatherEvent) public events;
 
