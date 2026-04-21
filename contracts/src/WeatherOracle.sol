@@ -189,6 +189,12 @@ contract WeatherOracle {
     }
 
     /// @notice Get comprehensive logging statistics.
+    /// @return totalEvents Total events recorded
+    /// @return totalApiCalls_ Total API calls made
+    /// @return lastHeartbeat Last heartbeat timestamp
+    /// @return eventsToday_ Events recorded today
+    /// @return totalFailures Total API failures
+    /// @return totalAlerts Total system alerts
     function getLoggingStats() external view returns (
         uint256 totalEvents,
         uint256 totalApiCalls_,
