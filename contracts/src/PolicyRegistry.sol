@@ -155,6 +155,7 @@ contract PolicyRegistry {
     }
 
     /// @notice Expire a policy that has passed its end date.
+    /// @dev Anyone can call this to update the status.
     function expirePolicy(bytes32 policyId) external {
         Policy storage p = policies[policyId];
         if (p.status != PolicyStatus.ACTIVE) revert PolicyNotActive();
