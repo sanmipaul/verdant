@@ -130,6 +130,7 @@ contract PolicyRegistry {
 
     /// @notice Public view to check if farmer has an active policy for location and type.
     /// Useful for frontend or external contracts to validate before registration.
+    /// Returns true if an active policy exists for the given parameters.
     function hasActivePolicyForLocation(
         address farmer,
         int256 lat,
@@ -274,6 +275,21 @@ contract PolicyRegistry {
     function getFarmerPolicies(address farmer) external view returns (bytes32[] memory) {
         return farmerPolicies[farmer];
     }
+    /// @notice Calculate premium for a given coverage amount.
+    ///         Premium = 1% of coverage amount, minimum 0.50 cUSD.
+    function _calculatePremium(uint256 coverageAmount) internal pure returns (uint256) {
+        uint256 calculated;
+        assembly {
+            calculated := div(coverageAmount, 100)
+        }
+        return calculated < MIN_PREMIUM ? MIN_PREMIUM : calculated;
+    }
+
+    /// @notice Public view for premium calculation.
+    function calculatePremium(uint256 coverageAmount) external pure returns (uint256) {
+        return _calculatePremium(coverageAmount);
+    }
+
 
 
     function getActiveFarmerPolicies(address farmer) external view returns (bytes32[] memory) {
