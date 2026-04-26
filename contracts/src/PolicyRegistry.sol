@@ -117,6 +117,7 @@ contract PolicyRegistry {
         CoverageType coverageType
     ) internal view returns (bool) {
         bytes32[] memory policyIds = farmerPolicies[farmer];
+        // Loop through all policies of the farmer
         for (uint256 i = 0; i < policyIds.length; i++) {
             Policy memory p = policies[policyIds[i]];
             if (p.status == PolicyStatus.ACTIVE && p.lat == lat && p.lng == lng && p.coverageType == coverageType) {
