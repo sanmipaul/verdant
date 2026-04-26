@@ -6,8 +6,9 @@
 // TODO: Consider adding a map integration for visual location selection
 
 import { useState } from "react";
-import { useWriteContract, useReadContract } from "wagmi";
+import { useWriteContract, useReadContract, useAccount, useSwitchChain } from "wagmi";
 import { parseUnits, formatUnits } from "viem";
+import { celo } from "viem/chains";
 import {
   POLICY_REGISTRY_ADDRESS,
   POLICY_REGISTRY_ABI,
@@ -35,17 +36,41 @@ export function RegisterPolicyForm({ onSuccess }: Props) {
   const [error, setError] = useState("");
   const [validationErrors, setValidationErrors] = useState<{[key: string]: string}>({});
 
+  const { address, chainId: walletChainId } = useAccount();
+  const { switchChain, isPending: isSwitching } = useSwitchChain();
+  const isWrongChain = walletChainId !== celo.id;
+
   const coverageAmountWei = parseUnits(coverageAmountCUSD || "0", 18);
 
-  const { data: premiumWei } = useReadContract({
+  const { data: premiumWei, isLoading: isPremiumLoading } = useReadContract({
     address: POLICY_REGISTRY_ADDRESS,
     abi: POLICY_REGISTRY_ABI,
     functionName: "calculatePremium",
     args: [coverageAmountWei],
-    query: {
-      enabled: coverageAmountWei > 0n && !!POLICY_REGISTRY_ADDRESS,
-    },
+    chainId: celo.id,
+    query: { enabled: coverageAmountWei > 0n && !!POLICY_REGISTRY_ADDRESS },
   });
+
+  const { data: cusdBalance } = useReadContract({
+    address: CUSD_ADDRESS,
+    abi: CUSD_ABI,
+    functionName: "balanceOf",
+    args: address ? [address] : undefined,
+    chainId: celo.id,
+    query: { enabled: !!address },
+  });
+
+  const { data: currentAllowance } = useReadContract({
+    address: CUSD_ADDRESS,
+    abi: CUSD_ABI,
+    functionName: "allowance",
+    args: address ? [address, POLICY_REGISTRY_ADDRESS] : undefined,
+    chainId: celo.id,
+    query: { enabled: !!address && !!POLICY_REGISTRY_ADDRESS },
+  });
+
+  const hasSufficientBalance = cusdBalance !== undefined && premiumWei !== undefined && cusdBalance >= premiumWei;
+  const needsApproval = currentAllowance === undefined || premiumWei === undefined || currentAllowance < premiumWei;
 
   const { writeContractAsync } = useWriteContract();
 
@@ -84,8 +109,9 @@ export function RegisterPolicyForm({ onSuccess }: Props) {
       (pos) => {
         setLatDeg(pos.coords.latitude.toFixed(6));
         setLngDeg(pos.coords.longitude.toFixed(6));
+        setError("");
       },
-      () => setError("Location access denied.")
+      () => setError("Location access denied. Enter coordinates manually.")
     );
   }
 
@@ -94,18 +120,39 @@ export function RegisterPolicyForm({ onSuccess }: Props) {
     if (!validateForm() || !premiumWei) return;
     setError("");
 
+    if (isWrongChain) {
+      setError("Please switch to Celo Mainnet first.");
+      return;
+    }
+    if (!premiumWei) {
+      setError("Premium not loaded yet. Wait a moment and try again.");
+      return;
+    }
+    if (!latDeg || !lngDeg) {
+      setError("Enter your farm coordinates.");
+      return;
+    }
+
     const latScaled = BigInt(Math.round(parseFloat(latDeg) * 1e6));
     const lngScaled = BigInt(Math.round(parseFloat(lngDeg) * 1e6));
     const endDate = Math.floor(Date.now() / 1000) + durationMonths * 30 * 24 * 60 * 60;
 
+    if (!hasSufficientBalance) {
+      setError(`Insufficient cUSD balance. You need ${formatUnits(premiumWei, 18)} cUSD but have ${formatUnits(cusdBalance ?? 0n, 18)} cUSD.`);
+      return;
+    }
+
     try {
-      setStep("approving");
-      await writeContractAsync({
-        address: CUSD_ADDRESS,
-        abi: CUSD_ABI,
-        functionName: "approve",
-        args: [POLICY_REGISTRY_ADDRESS, premiumWei],
-      });
+      if (needsApproval) {
+        setStep("approving");
+        await writeContractAsync({
+          address: CUSD_ADDRESS,
+          abi: CUSD_ABI,
+          functionName: "approve",
+          args: [POLICY_REGISTRY_ADDRESS, premiumWei],
+          chainId: celo.id,
+        });
+      }
 
       setStep("registering");
       await writeContractAsync({
@@ -113,6 +160,7 @@ export function RegisterPolicyForm({ onSuccess }: Props) {
         abi: POLICY_REGISTRY_ABI,
         functionName: "registerPolicy",
         args: [latScaled, lngScaled, coverageType, coverageAmountWei, endDate],
+        chainId: celo.id,
       });
 
       setStep("done");
@@ -127,7 +175,8 @@ export function RegisterPolicyForm({ onSuccess }: Props) {
       }, 3000);
       setTimeout(onSuccess, 1500);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Transaction failed.");
+      const msg = err instanceof Error ? err.message : "Transaction failed.";
+      setError(msg.length > 120 ? msg.slice(0, 120) + "…" : msg);
       setStep("idle");
     }
   }
@@ -330,6 +379,15 @@ export function RegisterPolicyForm({ onSuccess }: Props) {
             <span className="text-gray-500">Duration</span>
             <span className="font-medium">{durationMonths} month(s)</span>
           </div>
+          {cusdBalance !== undefined && (
+            <div className="flex justify-between border-t border-gray-200 pt-1.5 mt-1.5">
+              <span className="text-gray-500">Your cUSD balance</span>
+              <span className={`font-medium ${hasSufficientBalance ? "text-gray-800" : "text-red-600"}`}>
+                {formatUnits(cusdBalance, 18)} cUSD
+                {!hasSufficientBalance && " ⚠ insufficient"}
+              </span>
+            </div>
+          )}
         </div>
       ) : coverageAmountWei > 0n ? (
         <div className="bg-gray-50 rounded-2xl p-4 text-center text-sm text-gray-500 animate-pulse">
@@ -352,9 +410,11 @@ export function RegisterPolicyForm({ onSuccess }: Props) {
           <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
         )}
         {step === "approving"
-          ? "Approving cUSD spend..."
+          ? "Approving cUSD spend… (1/2)"
           : step === "registering"
-          ? "Registering policy..."
+          ? needsApproval ? "Registering policy… (2/2)" : "Registering policy…"
+          : isPremiumLoading
+          ? "Loading…"
           : "Activate Coverage"}
       </button>
     </form>
