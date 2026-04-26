@@ -381,6 +381,7 @@ contract PolicyRegistryTest is Test {
         _registerPolicy();
 
         // Register second with different type, same location
+        // This should succeed since type is different
         uint256 premium = registry.calculatePremium(COVERAGE);
         uint40 endDate = uint40(block.timestamp + DURATION);
 
