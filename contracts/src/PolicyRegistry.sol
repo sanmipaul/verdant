@@ -125,7 +125,7 @@ contract PolicyRegistry {
                 return true; // Found a matching active policy
             }
         }
-        return false;
+        return false; // No matching active policy found
     }
     /// @notice Set the authorized Cloudflare agent wallet.
     function setAuthorizedAgent(address _agent) external onlyOwner {
