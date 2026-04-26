@@ -128,7 +128,7 @@ contract PolicyRegistry {
                 return true; // Found a matching active policy
             }
         }
-        return false; // No matching active policy found
+        return false; // No matching active policy found, registration allowed
     }
 
     /// @notice Public view to check if farmer has an active policy for location and type.
