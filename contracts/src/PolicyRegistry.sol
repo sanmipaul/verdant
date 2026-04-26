@@ -164,6 +164,8 @@ contract PolicyRegistry {
         if (endDate <= block.timestamp) revert InvalidDuration();
         if (endDate - block.timestamp < MIN_DURATION) revert DurationTooShort();
 
+        if (_hasActivePolicyForLocation(msg.sender, lat, lng, coverageType)) revert PolicyAlreadyExists();
+
         uint256 premium = _calculatePremium(coverageAmount);
         if (cUSD.allowance(msg.sender, address(this)) < premium) revert InvalidPremium();
 
