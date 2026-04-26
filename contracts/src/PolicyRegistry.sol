@@ -134,6 +134,11 @@ contract PolicyRegistry {
     /// @notice Public view to check if farmer has an active policy for location and type.
     /// Useful for frontend or external contracts to validate before registration.
     /// Returns true if an active policy exists for the given parameters.
+    /// @param farmer The address of the farmer
+    /// @param lat Latitude of the location
+    /// @param lng Longitude of the location
+    /// @param coverageType The type of coverage
+    /// @return bool True if active policy exists
     function hasActivePolicyForLocation(
         address farmer,
         int256 lat,
