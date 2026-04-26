@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useWriteContract, useReadContract, useChainId, useSwitchChain } from "wagmi";
+import { useWriteContract, useReadContract, useAccount, useSwitchChain } from "wagmi";
 import { parseUnits, formatUnits } from "viem";
 import { celo } from "viem/chains";
 import {
@@ -30,25 +30,41 @@ export function RegisterPolicyForm({ onSuccess }: Props) {
   const [step, setStep] = useState<Step>("idle");
   const [error, setError] = useState("");
 
-  const chainId = useChainId();
+  const { address, chainId: walletChainId } = useAccount();
   const { switchChain, isPending: isSwitching } = useSwitchChain();
-  const isWrongChain = chainId !== celo.id;
+  const isWrongChain = walletChainId !== celo.id;
 
   const coverageAmountWei = parseUnits(coverageAmountCUSD || "0", 18);
 
-  const {
-    data: premiumWei,
-    isLoading: isPremiumLoading,
-  } = useReadContract({
+  const { data: premiumWei, isLoading: isPremiumLoading } = useReadContract({
     address: POLICY_REGISTRY_ADDRESS,
     abi: POLICY_REGISTRY_ABI,
     functionName: "calculatePremium",
     args: [coverageAmountWei],
     chainId: celo.id,
-    query: {
-      enabled: coverageAmountWei > 0n && !!POLICY_REGISTRY_ADDRESS,
-    },
+    query: { enabled: coverageAmountWei > 0n && !!POLICY_REGISTRY_ADDRESS },
   });
+
+  const { data: cusdBalance } = useReadContract({
+    address: CUSD_ADDRESS,
+    abi: CUSD_ABI,
+    functionName: "balanceOf",
+    args: address ? [address] : undefined,
+    chainId: celo.id,
+    query: { enabled: !!address },
+  });
+
+  const { data: currentAllowance } = useReadContract({
+    address: CUSD_ADDRESS,
+    abi: CUSD_ABI,
+    functionName: "allowance",
+    args: address ? [address, POLICY_REGISTRY_ADDRESS] : undefined,
+    chainId: celo.id,
+    query: { enabled: !!address && !!POLICY_REGISTRY_ADDRESS },
+  });
+
+  const hasSufficientBalance = cusdBalance !== undefined && premiumWei !== undefined && cusdBalance >= premiumWei;
+  const needsApproval = currentAllowance === undefined || premiumWei === undefined || currentAllowance < premiumWei;
 
   const { writeContractAsync } = useWriteContract();
 
@@ -85,15 +101,22 @@ export function RegisterPolicyForm({ onSuccess }: Props) {
     const lngScaled = BigInt(Math.round(parseFloat(lngDeg) * 1e6));
     const endDate = Math.floor(Date.now() / 1000) + durationMonths * 30 * 24 * 60 * 60;
 
+    if (!hasSufficientBalance) {
+      setError(`Insufficient cUSD balance. You need ${formatUnits(premiumWei, 18)} cUSD but have ${formatUnits(cusdBalance ?? 0n, 18)} cUSD.`);
+      return;
+    }
+
     try {
-      setStep("approving");
-      await writeContractAsync({
-        address: CUSD_ADDRESS,
-        abi: CUSD_ABI,
-        functionName: "approve",
-        args: [POLICY_REGISTRY_ADDRESS, premiumWei],
-        chainId: celo.id,
-      });
+      if (needsApproval) {
+        setStep("approving");
+        await writeContractAsync({
+          address: CUSD_ADDRESS,
+          abi: CUSD_ABI,
+          functionName: "approve",
+          args: [POLICY_REGISTRY_ADDRESS, premiumWei],
+          chainId: celo.id,
+        });
+      }
 
       setStep("registering");
       await writeContractAsync({
@@ -129,29 +152,24 @@ export function RegisterPolicyForm({ onSuccess }: Props) {
 
   const isSubmitting = step === "approving" || step === "registering";
 
-  // Wrong chain banner
-  if (isWrongChain) {
-    return (
-      <div className="space-y-5">
-        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5 text-center">
-          <p className="font-semibold text-amber-800 mb-1">Wrong Network</p>
-          <p className="text-sm text-amber-700 mb-4">
-            Verdant runs on Celo Mainnet. You are currently on chain {chainId}.
-          </p>
-          <button
-            onClick={() => switchChain({ chainId: celo.id })}
-            disabled={isSwitching}
-            className="bg-verdant-600 hover:bg-verdant-700 disabled:opacity-50 text-white font-semibold px-6 py-2.5 rounded-xl text-sm transition-colors"
-          >
-            {isSwitching ? "Switching…" : "Switch to Celo Mainnet"}
-          </button>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
+      {isWrongChain && (
+        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-center justify-between gap-3">
+          <p className="text-sm text-amber-800 font-medium">
+            Switch to Celo Mainnet to continue.
+          </p>
+          <button
+            type="button"
+            onClick={() => switchChain({ chainId: celo.id })}
+            disabled={isSwitching}
+            className="shrink-0 bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white font-semibold px-4 py-2 rounded-xl text-xs transition-colors"
+          >
+            {isSwitching ? "Switching…" : "Switch Network"}
+          </button>
+        </div>
+      )}
+
       <div className="bg-verdant-50 border border-verdant-100 rounded-2xl p-4 text-sm text-verdant-800 leading-relaxed">
         Payouts are automatic — the AI agent monitors your region daily and
         sends cUSD directly to your wallet when a threshold is breached.
@@ -283,6 +301,15 @@ export function RegisterPolicyForm({ onSuccess }: Props) {
             <span className="text-gray-500">Duration</span>
             <span className="font-medium">{durationMonths} month(s)</span>
           </div>
+          {cusdBalance !== undefined && (
+            <div className="flex justify-between border-t border-gray-200 pt-1.5 mt-1.5">
+              <span className="text-gray-500">Your cUSD balance</span>
+              <span className={`font-medium ${hasSufficientBalance ? "text-gray-800" : "text-red-600"}`}>
+                {formatUnits(cusdBalance, 18)} cUSD
+                {!hasSufficientBalance && " ⚠ insufficient"}
+              </span>
+            </div>
+          )}
         </div>
       )}
       {!isPremiumLoading && premiumWei === undefined && POLICY_REGISTRY_ADDRESS && (
@@ -303,9 +330,9 @@ export function RegisterPolicyForm({ onSuccess }: Props) {
         className="w-full bg-verdant-600 hover:bg-verdant-700 disabled:opacity-50 text-white font-semibold py-3.5 rounded-2xl text-sm transition-colors"
       >
         {step === "approving"
-          ? "Approving cUSD spend…"
+          ? "Approving cUSD spend… (1/2)"
           : step === "registering"
-          ? "Registering policy…"
+          ? needsApproval ? "Registering policy… (2/2)" : "Registering policy…"
           : isPremiumLoading
           ? "Loading…"
           : "Activate Coverage"}
