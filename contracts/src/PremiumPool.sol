@@ -8,6 +8,7 @@ import {IERC20} from "forge-std/interfaces/IERC20.sol";
 ///         Only the PayoutVault can withdraw funds for payouts.
 ///         The owner can deposit reserve capital.
 /// @dev Gas optimizations: cached balance checks, batch operations, unchecked loops
+/// @dev Security: Protected by reentrancy guard on withdrawForPayout
 contract PremiumPool {
     IERC20 public immutable cUSD;
     address public immutable owner;
@@ -15,6 +16,9 @@ contract PremiumPool {
 
     uint256 public totalDeposited;
     uint256 public totalPaidOut;
+    
+    // Reentrancy guard: 1 = unlocked, 2 = locked
+    uint256 private _locked;
 
     event Deposited(address indexed from, uint256 amount);
     event PayoutVaultSet(address indexed vault);
@@ -24,6 +28,7 @@ contract PremiumPool {
     error InsufficientBalance();
     error ZeroAmount();
     error VaultAlreadySet();
+    error Reentrancy();
 
     modifier onlyOwner() {
         if (msg.sender != owner) revert Unauthorized();
@@ -35,9 +40,17 @@ contract PremiumPool {
         _;
     }
 
+    modifier noReentrant() {
+        if (_locked != 1) revert Reentrancy();
+        _locked = 2;
+        _;
+        _locked = 1;
+    }
+
     constructor(address _cUSD, address _owner) {
         cUSD = IERC20(_cUSD);
         owner = _owner;
+        _locked = 1;
     }
 
     /// @notice Set the PayoutVault address. Can only be called once.
@@ -74,7 +87,8 @@ contract PremiumPool {
     }
 
     /// @notice Called by PayoutVault to withdraw funds for a payout.
-    function withdrawForPayout(uint256 amount, address recipient) external onlyVault {
+    /// @dev Protected by reentrancy guard to prevent recursive withdrawals
+    function withdrawForPayout(uint256 amount, address recipient) external onlyVault noReentrant {
         if (amount == 0) revert ZeroAmount();
         uint256 balance = cUSD.balanceOf(address(this));
         if (balance < amount) revert InsufficientBalance();
