@@ -391,7 +391,7 @@ contract PolicyRegistryTest is Test {
         vm.stopPrank();
 
         bytes32[] memory policies = registry.getFarmerPolicies(farmer);
-        assertEq(policies.length, 2);
+        assertEq(policies.length, 2); // Should have two policies now
     }
 
     function _registerPolicy() internal returns (bytes32 policyId) {
