@@ -354,12 +354,58 @@ contract PolicyRegistryTest is Test {
         assertEq(policies.length, 1);
     }
 
+    function test_PreventDuplicateActivePolicies() public {
+        // Register first policy
+        bytes32 policyId1 = _registerPolicy();
+
+        // Try to register second policy with same location and type
+        uint256 premium = registry.calculatePremium(COVERAGE);
+        uint40 endDate = uint40(block.timestamp + DURATION);
+
+        vm.startPrank(farmer);
+        cUSD.approve(address(registry), premium);
+        vm.expectRevert(PolicyRegistry.PolicyAlreadyExists.selector);
+        registry.registerPolicy(LAT, LNG, PolicyRegistry.CoverageType.DROUGHT, COVERAGE, endDate);
+        vm.stopPrank();
+
+        // Ensure only one policy exists
+        bytes32[] memory policies = registry.getFarmerPolicies(farmer);
+        assertEq(policies.length, 1);
+    }
+
+    function test_AllowDifferentCoverageType() public {
+        // Register first policy
+        _registerPolicy();
+
+        // Register second with different type, same location
+        uint256 premium = registry.calculatePremium(COVERAGE);
+        uint40 endDate = uint40(block.timestamp + DURATION);
+
+        vm.startPrank(farmer);
+        cUSD.approve(address(registry), premium);
+        registry.registerPolicy(LAT, LNG, PolicyRegistry.CoverageType.FLOOD, COVERAGE, endDate);
+        vm.stopPrank();
+
+        bytes32[] memory policies = registry.getFarmerPolicies(farmer);
+        assertEq(policies.length, 2);
+    }
+
     function _registerPolicy() internal returns (bytes32 policyId) {
         uint256 premium = registry.calculatePremium(COVERAGE);
         vm.startPrank(farmer);
         cUSD.approve(address(registry), premium);
         policyId = registry.registerPolicy(
             LAT, LNG, PolicyRegistry.CoverageType.DROUGHT, COVERAGE, uint40(block.timestamp + DURATION)
+        );
+        vm.stopPrank();
+    }
+
+    function _registerPolicyWithType(PolicyRegistry.CoverageType t) internal returns (bytes32 policyId) {
+        uint256 premium = registry.calculatePremium(COVERAGE);
+        vm.startPrank(farmer);
+        cUSD.approve(address(registry), premium);
+        policyId = registry.registerPolicy(
+            LAT + 100, LNG + 100, t, COVERAGE, uint40(block.timestamp + DURATION)
         );
         vm.stopPrank();
     }
