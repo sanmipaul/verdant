@@ -183,6 +183,7 @@ contract PolicyRegistry {
         if (endDate - block.timestamp < MIN_DURATION) revert DurationTooShort();
 
         // Prevent registering duplicate active policies for the same location and coverage type
+        // This ensures farmers don't have multiple active policies for the same risk
         if (_hasActivePolicyForLocation(msg.sender, lat, lng, coverageType)) revert PolicyAlreadyExists();
 
         uint256 premium = _calculatePremium(coverageAmount);
