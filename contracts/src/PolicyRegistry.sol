@@ -167,6 +167,7 @@ contract PolicyRegistry {
         if (endDate <= block.timestamp) revert InvalidDuration();
         if (endDate - block.timestamp < MIN_DURATION) revert DurationTooShort();
 
+        // Prevent registering duplicate active policies for the same location and coverage type
         if (_hasActivePolicyForLocation(msg.sender, lat, lng, coverageType)) revert PolicyAlreadyExists();
 
         uint256 premium = _calculatePremium(coverageAmount);
