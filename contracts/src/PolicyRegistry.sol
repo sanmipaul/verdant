@@ -115,6 +115,15 @@ contract PolicyRegistry {
         int256 lng,
         CoverageType coverageType
     ) internal view returns (bool) {
+        bytes32[] memory policyIds = farmerPolicies[farmer];
+        for (uint256 i = 0; i < policyIds.length; i++) {
+            Policy memory p = policies[policyIds[i]];
+            if (p.status == PolicyStatus.ACTIVE && p.lat == lat && p.lng == lng && p.coverageType == coverageType) {
+                return true;
+            }
+        }
+        return false;
+    }
     /// @notice Set the authorized Cloudflare agent wallet.
     function setAuthorizedAgent(address _agent) external onlyOwner {
         authorizedAgent = _agent;
