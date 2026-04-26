@@ -370,6 +370,7 @@ contract PolicyRegistryTest is Test {
         vm.stopPrank();
 
         // Ensure only one policy exists
+        // The second registration should have failed
         bytes32[] memory policies = registry.getFarmerPolicies(farmer);
         assertEq(policies.length, 1);
     }
