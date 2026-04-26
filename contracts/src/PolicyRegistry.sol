@@ -105,9 +105,10 @@ contract PolicyRegistry {
         CoverageType coverageType,
         uint256 coverageAmount,
         uint40 endDate
-    ) external returns (bytes32 policyId) {
+    ) external whenNotPaused returns (bytes32 policyId) {
         if (coverageAmount == 0 || coverageAmount > MAX_COVERAGE) revert InvalidCoverage();
         if (endDate <= block.timestamp) revert InvalidDuration();
+        if (endDate - block.timestamp < MIN_DURATION) revert DurationTooShort();
 
         uint256 premium = _calculatePremium(coverageAmount);
         if (cUSD.allowance(msg.sender, address(this)) < premium) revert InvalidPremium();
@@ -142,7 +143,7 @@ contract PolicyRegistry {
     }
 
     /// @notice Called by the authorized agent when a parametric trigger is confirmed.
-    function markClaimed(bytes32 policyId) external onlyAgent {
+    function markClaimed(bytes32 policyId) external onlyAgent whenNotPaused {
         Policy storage p = policies[policyId];
         if (p.status != PolicyStatus.ACTIVE) revert PolicyNotActive();
         if (block.timestamp > p.endDate) {
@@ -157,7 +158,7 @@ contract PolicyRegistry {
     }
 
     /// @notice Batch mark multiple policies as claimed (gas optimized).
-    function batchMarkClaimed(bytes32[] calldata policyIds) external onlyAgent {
+    function batchMarkClaimed(bytes32[] calldata policyIds) external onlyAgent whenNotPaused {
         uint256 length = policyIds.length;
         uint40 currentTime = uint40(block.timestamp);
 
@@ -176,7 +177,7 @@ contract PolicyRegistry {
 
     /// @notice Expire a policy that has passed its end date.
     /// @dev Anyone can call this to update the status.
-    function expirePolicy(bytes32 policyId) external {
+    function expirePolicy(bytes32 policyId) external whenNotPaused {
         Policy storage p = policies[policyId];
         if (p.status != PolicyStatus.ACTIVE) revert PolicyNotActive();
         if (block.timestamp <= p.endDate) revert PolicyNotActive();
@@ -187,7 +188,7 @@ contract PolicyRegistry {
 
     /// @notice Batch expire multiple policies that have passed their end dates.
     /// @dev Skips policies that are not active or not expired.
-    function batchExpirePolicies(bytes32[] calldata policyIds) external {
+    function batchExpirePolicies(bytes32[] calldata policyIds) external whenNotPaused {
         for (uint256 i = 0; i < policyIds.length; i++) {
             bytes32 policyId = policyIds[i];
             Policy storage p = policies[policyId];
