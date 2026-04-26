@@ -52,6 +52,12 @@ contract PolicyRegistry {
 
     // Maximum coverage per policy: 0.001 cUSD
     uint256 public constant MAX_COVERAGE = 1e15;
+    
+    // Minimum policy duration: 1 day
+    uint256 public constant MIN_DURATION = 1 days;
+    
+    // Pause state
+    bool private _paused;
 
     event PolicyRegistered(
         bytes32 indexed policyId,
@@ -63,6 +69,8 @@ contract PolicyRegistry {
     event PolicyClaimed(bytes32 indexed policyId, address indexed farmer, uint256 payout);
     event PolicyExpired(bytes32 indexed policyId);
     event AgentUpdated(address indexed agent);
+    event Paused(address account);
+    event Unpaused(address account);
 
     error Unauthorized();
     error InvalidPremium();
@@ -71,6 +79,8 @@ contract PolicyRegistry {
     error PolicyNotActive();
     error PolicyAlreadyExists();
     error TransferFailed();
+    error ContractPaused();
+    error DurationTooShort();
 
     modifier onlyOwner() {
         if (msg.sender != owner) revert Unauthorized();
@@ -82,16 +92,82 @@ contract PolicyRegistry {
         _;
     }
 
+    modifier whenNotPaused() {
+        if (_paused) revert ContractPaused();
+        _;
+    }
+
+    modifier whenPaused() {
+        if (!_paused) revert ContractPaused();
+        _;
+    }
+
     constructor(address _cUSD, address _premiumPool, address _owner) {
         cUSD = IERC20(_cUSD);
         premiumPool = PremiumPool(_premiumPool);
         owner = _owner;
     }
 
+    /// @notice Check if farmer has an active policy for the given location and coverage type.
+    /// This prevents duplicate policies for the same farmer at the same location with the same coverage type.
+    /// Used internally in registerPolicy to enforce uniqueness.
+    function _hasActivePolicyForLocation(
+        address farmer,
+        int256 lat,
+        int256 lng,
+        CoverageType coverageType
+    ) internal view returns (bool) {
+        bytes32[] memory policyIds = farmerPolicies[farmer];
+        // Loop through all policies of the farmer
+        // This is O(n) where n is number of policies per farmer, acceptable for typical use
+        for (uint256 i = 0; i < policyIds.length; i++) {
+            Policy memory p = policies[policyIds[i]];
+            // Check if policy is active and matches the location and coverage type
+            // If all conditions match, a duplicate exists
+            if (p.status == PolicyStatus.ACTIVE && p.lat == lat && p.lng == lng && p.coverageType == coverageType) {
+                return true; // Found a matching active policy
+            }
+        }
+        return false; // No matching active policy found, registration allowed
+    }
+
+    /// @notice Public view to check if farmer has an active policy for location and type.
+    /// Useful for frontend or external contracts to validate before registration.
+    /// Returns true if an active policy exists for the given parameters.
+    /// @param farmer The address of the farmer
+    /// @param lat Latitude of the location
+    /// @param lng Longitude of the location
+    /// @param coverageType The type of coverage
+    /// @return bool True if active policy exists
+    function hasActivePolicyForLocation(
+        address farmer,
+        int256 lat,
+        int256 lng,
+        CoverageType coverageType
+    ) external view returns (bool) {
+        return _hasActivePolicyForLocation(farmer, lat, lng, coverageType); // Delegate to internal function
+    }
     /// @notice Set the authorized Cloudflare agent wallet.
     function setAuthorizedAgent(address _agent) external onlyOwner {
         authorizedAgent = _agent;
         emit AgentUpdated(_agent);
+    }
+
+    /// @notice Pause contract - only owner, disables registrations/claims/expiry
+    function pause() external onlyOwner whenNotPaused {
+        _paused = true;
+        emit Paused(msg.sender);
+    }
+
+    /// @notice Unpause contract - only owner, re-enables registrations/claims/expiry
+    function unpause() external onlyOwner whenPaused {
+        _paused = false;
+        emit Unpaused(msg.sender);
+    }
+
+    /// @notice Returns true if contract is paused
+    function paused() public view returns (bool) {
+        return _paused;
     }
 
     /// @notice Register a new insurance policy.
@@ -106,9 +182,14 @@ contract PolicyRegistry {
         CoverageType coverageType,
         uint256 coverageAmount,
         uint40 endDate
-    ) external returns (bytes32 policyId) {
+    ) external whenNotPaused returns (bytes32 policyId) {
         if (coverageAmount == 0 || coverageAmount > MAX_COVERAGE) revert InvalidCoverage();
         if (endDate <= block.timestamp) revert InvalidDuration();
+        if (endDate - block.timestamp < MIN_DURATION) revert DurationTooShort();
+
+        // Prevent registering duplicate active policies for the same location and coverage type
+        // This ensures farmers don't have multiple active policies for the same risk
+        if (_hasActivePolicyForLocation(msg.sender, lat, lng, coverageType)) revert PolicyAlreadyExists();
 
         uint256 premium = _calculatePremium(coverageAmount);
         if (cUSD.allowance(msg.sender, address(this)) < premium) revert InvalidPremium();
@@ -143,7 +224,7 @@ contract PolicyRegistry {
     }
 
     /// @notice Called by the authorized agent when a parametric trigger is confirmed.
-    function markClaimed(bytes32 policyId) external onlyAgent {
+    function markClaimed(bytes32 policyId) external onlyAgent whenNotPaused {
         Policy storage p = policies[policyId];
         if (p.status != PolicyStatus.ACTIVE) revert PolicyNotActive();
         if (block.timestamp > p.endDate) {
@@ -158,7 +239,7 @@ contract PolicyRegistry {
     }
 
     /// @notice Batch mark multiple policies as claimed (gas optimized).
-    function batchMarkClaimed(bytes32[] calldata policyIds) external onlyAgent {
+    function batchMarkClaimed(bytes32[] calldata policyIds) external onlyAgent whenNotPaused {
         uint256 length = policyIds.length;
         uint40 currentTime = uint40(block.timestamp);
 
@@ -177,7 +258,7 @@ contract PolicyRegistry {
 
     /// @notice Expire a policy that has passed its end date.
     /// @dev Anyone can call this to update the status.
-    function expirePolicy(bytes32 policyId) external {
+    function expirePolicy(bytes32 policyId) external whenNotPaused {
         Policy storage p = policies[policyId];
         if (p.status != PolicyStatus.ACTIVE) revert PolicyNotActive();
         if (block.timestamp <= p.endDate) revert PolicyNotActive();
@@ -188,7 +269,7 @@ contract PolicyRegistry {
 
     /// @notice Batch expire multiple policies that have passed their end dates.
     /// @dev Skips policies that are not active or not expired.
-    function batchExpirePolicies(bytes32[] calldata policyIds) external {
+    function batchExpirePolicies(bytes32[] calldata policyIds) external whenNotPaused {
         for (uint256 i = 0; i < policyIds.length; i++) {
             bytes32 policyId = policyIds[i];
             Policy storage p = policies[policyId];
@@ -203,40 +284,6 @@ contract PolicyRegistry {
     function getFarmerPolicies(address farmer) external view returns (bytes32[] memory) {
         return farmerPolicies[farmer];
     }
-
-    /// @notice Get active (non-expired) policy IDs for a farmer.
-    /// @dev Filters out expired policies dynamically. Returns only ACTIVE policies not past endDate.
-    function getActiveFarmerPolicies(address farmer) external view returns (bytes32[] memory) {
-        bytes32[] memory all = farmerPolicies[farmer];
-        uint256 count = 0;
-        for (uint256 i = 0; i < all.length; i++) {
-            if (!this.isPolicyExpired(all[i])) {
-                count++;
-            }
-        }
-        bytes32[] memory active = new bytes32[](count);
-        uint256 j = 0;
-        for (uint256 i = 0; i < all.length; i++) {
-            if (!this.isPolicyExpired(all[i])) {
-                active[j] = all[i];
-                j++;
-            }
-        }
-        return active;
-    }
-
-    /// @notice Get a policy by ID.
-    function getPolicy(bytes32 policyId) external view returns (Policy memory) {
-        return policies[policyId];
-    }
-
-    /// @notice Check if a policy is expired.
-    /// @dev Considers both explicit EXPIRED status and time-based expiration.
-    function isPolicyExpired(bytes32 policyId) external view returns (bool) {
-        Policy memory p = policies[policyId];
-        return p.status == PolicyStatus.EXPIRED || (p.status == PolicyStatus.ACTIVE && block.timestamp > p.endDate);
-    }
-
     /// @notice Calculate premium for a given coverage amount.
     ///         Premium = 1% of coverage amount, minimum 0.50 cUSD.
     function _calculatePremium(uint256 coverageAmount) internal pure returns (uint256) {
@@ -252,7 +299,8 @@ contract PolicyRegistry {
         return _calculatePremium(coverageAmount);
     }
 
-    /// @notice Get all active policy IDs for a farmer (gas optimized).
+
+
     function getActiveFarmerPolicies(address farmer) external view returns (bytes32[] memory) {
         bytes32[] memory allPolicies = farmerPolicies[farmer];
         uint256 length = allPolicies.length;

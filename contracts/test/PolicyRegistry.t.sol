@@ -208,12 +208,208 @@ contract PolicyRegistryTest is Test {
 
     // --- helpers ---
 
+    function test_PauseUnpause_OnlyOwner() public {
+        vm.prank(owner);
+        registry.pause();
+        assertTrue(registry.paused());
+        
+        vm.prank(owner);
+        registry.unpause();
+        assertFalse(registry.paused());
+    }
+
+    function test_Pause_Unauthorized() public {
+        vm.expectRevert(PolicyRegistry.Unauthorized.selector);
+        vm.prank(farmer);
+        registry.pause();
+    }
+
+    function test_Unpause_Unauthorized() public {
+        vm.prank(owner);
+        registry.pause();
+        
+        vm.expectRevert(PolicyRegistry.Unauthorized.selector);
+        vm.prank(farmer);
+        registry.unpause();
+    }
+
+    function test_PauseWhenAlreadyPaused() public {
+        vm.prank(owner);
+        registry.pause();
+        
+        vm.expectRevert(PolicyRegistry.ContractPaused.selector);
+        vm.prank(owner);
+        registry.pause();
+    }
+
+    function test_UnpauseWhenNotPaused() public {
+        vm.expectRevert(PolicyRegistry.ContractPaused.selector);
+        vm.prank(owner);
+        registry.unpause();
+    }
+
+    function test_RegisterWhenPaused_Fails() public {
+        vm.prank(owner);
+        registry.pause();
+        
+        uint256 premium = registry.calculatePremium(COVERAGE);
+        uint40 endDate = uint40(block.timestamp + DURATION);
+        
+        vm.startPrank(farmer);
+        cUSD.approve(address(registry), premium);
+        vm.expectRevert(PolicyRegistry.ContractPaused.selector);
+        registry.registerPolicy(LAT, LNG, PolicyRegistry.CoverageType.DROUGHT, COVERAGE, endDate);
+        vm.stopPrank();
+    }
+
+    function test_MarkClaimedWhenPaused_Fails() public {
+        bytes32 policyId = _registerPolicy();
+        
+        vm.prank(owner);
+        registry.pause();
+        
+        vm.expectRevert(PolicyRegistry.ContractPaused.selector);
+        vm.prank(agent);
+        registry.markClaimed(policyId);
+    }
+
+    function test_BatchMarkClaimedWhenPaused_Fails() public {
+        bytes32 policyId = _registerPolicy();
+        
+        vm.prank(owner);
+        registry.pause();
+        
+        bytes32[] memory ids = new bytes32[](1);
+        ids[0] = policyId;
+        
+        vm.expectRevert(PolicyRegistry.ContractPaused.selector);
+        vm.prank(agent);
+        registry.batchMarkClaimed(ids);
+    }
+
+    function test_ExpirePolicyWhenPaused_Fails() public {
+        bytes32 policyId = _registerPolicy();
+        
+        vm.prank(owner);
+        registry.pause();
+        
+        vm.warp(block.timestamp + DURATION + 1);
+        vm.expectRevert(PolicyRegistry.ContractPaused.selector);
+        registry.expirePolicy(policyId);
+    }
+
+    function test_BatchExpireWhenPaused_Fails() public {
+        bytes32 policyId = _registerPolicy();
+        
+        vm.prank(owner);
+        registry.pause();
+        
+        vm.warp(block.timestamp + DURATION + 1);
+        
+        bytes32[] memory ids = new bytes32[](1);
+        ids[0] = policyId;
+        
+        vm.expectRevert(PolicyRegistry.ContractPaused.selector);
+        registry.batchExpirePolicies(ids);
+    }
+
+    function test_UnpauseRestoresFunctionality() public {
+        bytes32 policyId = _registerPolicy();
+        
+        vm.prank(owner);
+        registry.pause();
+        vm.prank(owner);
+        registry.unpause();
+        
+        assertFalse(registry.paused());
+        
+        vm.prank(agent);
+        registry.markClaimed(policyId);
+        
+        PolicyRegistry.Policy memory p = registry.getPolicy(policyId);
+        assertEq(uint8(p.status), uint8(PolicyRegistry.PolicyStatus.CLAIMED));
+    }
+
+    function test_MinimumDuration() public {
+        uint256 premium = registry.calculatePremium(COVERAGE);
+        uint40 endDate = uint40(block.timestamp + 12 hours); // Less than 1 day
+        
+        vm.startPrank(farmer);
+        cUSD.approve(address(registry), premium);
+        vm.expectRevert(PolicyRegistry.DurationTooShort.selector);
+        registry.registerPolicy(LAT, LNG, PolicyRegistry.CoverageType.DROUGHT, COVERAGE, endDate);
+        vm.stopPrank();
+    }
+
+    function test_MinimumDurationEdgeCase() public {
+        uint256 premium = registry.calculatePremium(COVERAGE);
+        uint40 endDate = uint40(block.timestamp + 1 days); // Exactly 1 day
+        
+        vm.startPrank(farmer);
+        cUSD.approve(address(registry), premium);
+        registry.registerPolicy(LAT, LNG, PolicyRegistry.CoverageType.DROUGHT, COVERAGE, endDate);
+        vm.stopPrank();
+        
+        bytes32[] memory policies = registry.getFarmerPolicies(farmer);
+        assertEq(policies.length, 1);
+    }
+
+    function test_PreventDuplicateActivePolicies() public {
+        // Test that registering a second policy with same location and coverage type fails
+        // This ensures no duplicate active policies for the same farmer, location, and type
+        bytes32 policyId1 = _registerPolicy();
+
+        // Try to register second policy with same location and type
+        uint256 premium = registry.calculatePremium(COVERAGE);
+        uint40 endDate = uint40(block.timestamp + DURATION);
+
+        vm.startPrank(farmer);
+        cUSD.approve(address(registry), premium);
+        vm.expectRevert(PolicyRegistry.PolicyAlreadyExists.selector); // Should revert due to duplicate
+        registry.registerPolicy(LAT, LNG, PolicyRegistry.CoverageType.DROUGHT, COVERAGE, endDate);
+        vm.stopPrank(); // End the prank context after failed registration
+
+        // Ensure only one policy exists
+        // The second registration should have failed
+        bytes32[] memory policies = registry.getFarmerPolicies(farmer);
+        assertEq(policies.length, 1);
+    }
+
+    function test_AllowDifferentCoverageType() public {
+        // Test that different coverage types are allowed for same location
+        // This verifies that only same type is prevented, not different types
+        _registerPolicy();
+
+        // Register second with different type, same location
+        // This should succeed since type is different
+        uint256 premium = registry.calculatePremium(COVERAGE);
+        uint40 endDate = uint40(block.timestamp + DURATION);
+
+        vm.startPrank(farmer);
+        cUSD.approve(address(registry), premium);
+        registry.registerPolicy(LAT, LNG, PolicyRegistry.CoverageType.FLOOD, COVERAGE, endDate);
+        vm.stopPrank();
+
+        bytes32[] memory policies = registry.getFarmerPolicies(farmer);
+        assertEq(policies.length, 2); // Should have two policies now // Should have two policies now
+    }
+
     function _registerPolicy() internal returns (bytes32 policyId) {
         uint256 premium = registry.calculatePremium(COVERAGE);
         vm.startPrank(farmer);
         cUSD.approve(address(registry), premium);
         policyId = registry.registerPolicy(
             LAT, LNG, PolicyRegistry.CoverageType.DROUGHT, COVERAGE, uint40(block.timestamp + DURATION)
+        );
+        vm.stopPrank();
+    }
+
+    function _registerPolicyWithType(PolicyRegistry.CoverageType t) internal returns (bytes32 policyId) {
+        uint256 premium = registry.calculatePremium(COVERAGE);
+        vm.startPrank(farmer);
+        cUSD.approve(address(registry), premium);
+        policyId = registry.registerPolicy(
+            LAT + 100, LNG + 100, t, COVERAGE, uint40(block.timestamp + DURATION)
         );
         vm.stopPrank();
     }
