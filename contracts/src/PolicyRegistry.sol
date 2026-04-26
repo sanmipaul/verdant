@@ -110,6 +110,7 @@ contract PolicyRegistry {
 
     /// @notice Check if farmer has an active policy for the given location and coverage type.
     /// This prevents duplicate policies for the same farmer at the same location with the same coverage type.
+    /// Used internally in registerPolicy to enforce uniqueness.
     function _hasActivePolicyForLocation(
         address farmer,
         int256 lat,
