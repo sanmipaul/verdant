@@ -91,10 +91,7 @@ contract PolicyRegistry {
     }
 
     /// @notice Set the authorized Cloudflare agent wallet.
-    function setAuthorizedAgent(address _agent) external onlyOwner {
-        authorizedAgent = _agent;
-        emit AgentUpdated(_agent);
-    }
+
 
     /// @notice Register a new insurance policy.
     /// @param lat      GPS latitude × 1e6 (e.g. 1.2921° = 1292100)
