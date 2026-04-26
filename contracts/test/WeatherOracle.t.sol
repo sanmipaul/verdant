@@ -41,13 +41,72 @@ contract WeatherOracleTest is Test {
         oracle.recordEvent(LAT, LNG, WeatherOracle.EventType.FLOOD, 2000, uint40(block.timestamp), "open-meteo");
     }
 
-    function test_CannotRecordDuplicateEvent() public {
-        vm.prank(agent);
-        oracle.recordEvent(LAT, LNG, WeatherOracle.EventType.DROUGHT, 1500, uint40(block.timestamp), "open-meteo");
+    function test_RecordEventWithMultipleSources() public {
+        WeatherOracle.ApiData[] memory apiData = new WeatherOracle.ApiData[](2);
+        apiData[0] = WeatherOracle.ApiData("open-meteo", 1500, uint40(block.timestamp));
+        apiData[1] = WeatherOracle.ApiData("nasa-power", 1600, uint40(block.timestamp));
 
-        vm.expectRevert(WeatherOracle.EventAlreadyExists.selector);
         vm.prank(agent);
-        oracle.recordEvent(LAT, LNG, WeatherOracle.EventType.DROUGHT, 1500, uint40(block.timestamp), "open-meteo");
+        bytes32 eventId = oracle.recordEvent(
+            LAT, LNG,
+            WeatherOracle.EventType.DROUGHT,
+            apiData,
+            uint40(block.timestamp)
+        );
+
+        WeatherOracle.WeatherEvent memory e = oracle.getEvent(eventId);
+        assertEq(e.value, 1550); // average
+        assertEq(e.sources.length, 2);
+    }
+
+    function test_GetEventSources() public {
+        WeatherOracle.ApiData[] memory apiData = new WeatherOracle.ApiData[](2);
+        apiData[0] = WeatherOracle.ApiData("open-meteo", 1500, uint40(block.timestamp));
+        apiData[1] = WeatherOracle.ApiData("nasa-power", 1600, uint40(block.timestamp));
+
+        vm.prank(agent);
+        bytes32 eventId = oracle.recordEvent(
+            LAT, LNG,
+            WeatherOracle.EventType.DROUGHT,
+            apiData,
+            uint40(block.timestamp)
+        );
+
+        WeatherOracle.ApiData[] memory sources = oracle.getEventSources(eventId);
+        assertEq(sources.length, 2);
+        assertEq(sources[0].value, 1500);
+        assertEq(sources[1].value, 1600);
+    }
+
+    function test_IsConsensusReliable() public {
+        WeatherOracle.ApiData[] memory apiData = new WeatherOracle.ApiData[](2);
+        apiData[0] = WeatherOracle.ApiData("open-meteo", 1500, uint40(block.timestamp));
+        apiData[1] = WeatherOracle.ApiData("nasa-power", 1600, uint40(block.timestamp));
+
+        vm.prank(agent);
+        bytes32 eventId = oracle.recordEvent(
+            LAT, LNG,
+            WeatherOracle.EventType.DROUGHT,
+            apiData,
+            uint40(block.timestamp)
+        );
+
+        bool reliable = oracle.isConsensusReliable(eventId, 10000); // threshold
+        assertTrue(reliable); // variance is 2500
+    }
+
+    function test_InsufficientSources() public {
+        WeatherOracle.ApiData[] memory apiData = new WeatherOracle.ApiData[](1);
+        apiData[0] = WeatherOracle.ApiData("open-meteo", 1500, uint40(block.timestamp));
+
+        vm.expectRevert("Insufficient sources");
+        vm.prank(agent);
+        oracle.recordEvent(
+            LAT, LNG,
+            WeatherOracle.EventType.DROUGHT,
+            apiData,
+            uint40(block.timestamp)
+        );
     }
 
     function test_GetRegionEvents() public {

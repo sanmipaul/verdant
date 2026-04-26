@@ -10,6 +10,7 @@ import {MockERC20} from "./mocks/MockERC20.sol";
 
 /// @notice End-to-end test simulating the full parametric insurance lifecycle:
 ///         register → weather event → mark claimed → payout → audit trail
+/// @dev Updated to use multiple API sources for weather events. Payouts are proportional to premiums.
 contract IntegrationTest is Test {
     PolicyRegistry registry;
     PremiumPool pool;
@@ -52,6 +53,7 @@ contract IntegrationTest is Test {
     }
 
     function test_FullDroughtLifecycle() public {
+        // Test the complete insurance lifecycle from registration to payout
         // 1. Farmer registers drought coverage
         uint256 coverage = 30e18;
         uint256 premium  = registry.calculatePremium(coverage);
@@ -67,13 +69,16 @@ contract IntegrationTest is Test {
         // 2. Agent records a drought weather event after 30 days
         vm.warp(block.timestamp + 30 days);
 
+        WeatherOracle.ApiData[] memory apiData = new WeatherOracle.ApiData[](2);
+        apiData[0] = WeatherOracle.ApiData("open-meteo", 1500, uint40(block.timestamp));
+        apiData[1] = WeatherOracle.ApiData("nasa-power", 1400, uint40(block.timestamp));
+
         vm.prank(agent);
         oracle.recordEvent(
             LAT, LNG,
             WeatherOracle.EventType.DROUGHT,
-            1500,           // 15.00mm rainfall (below 20mm threshold) × 100
-            uint40(block.timestamp),
-            "open-meteo"
+            apiData,
+            uint40(block.timestamp)
         );
 
         // 3. Agent marks policy as claimed
@@ -86,19 +91,24 @@ contract IntegrationTest is Test {
         vm.prank(agent);
         vault.triggerPayout(policyId);
 
-        // 5. Farmer received coverage
-        assertEq(cUSD.balanceOf(farmer1), balanceBefore + coverage);
+        // 5. Farmer received coverage (proportional to premium paid)
+        uint256 expectedPayout = vault.calculatePayout(policyId);
+        assertEq(cUSD.balanceOf(farmer1), balanceBefore + expectedPayout);
 
         // 6. Policy status is CLAIMED
         PolicyRegistry.Policy memory p = registry.getPolicy(policyId);
         assertEq(uint8(p.status), uint8(PolicyRegistry.PolicyStatus.CLAIMED));
 
-        // 7. Oracle has the weather event on-chain
+        // 7. Oracle has the weather event on-chain with consensus value
         bytes32[] memory events = oracle.getRegionEvents(LAT, LNG);
         assertEq(events.length, 1);
+
+        // 8. Consensus is reliable
+        assertTrue(oracle.isConsensusReliable(events[0], 10000));
     }
 
     function test_MultipleRegionsIndependent() public {
+        // Test that events in one region do not affect policies in another
         // Farmer1 in Nairobi, Farmer2 in Lagos (different region)
         int256 lagosLat = 6452200;
         int256 lagosLng = 3395800;
@@ -118,8 +128,12 @@ contract IntegrationTest is Test {
         vm.stopPrank();
 
         // Agent records event only in Nairobi region
+        WeatherOracle.ApiData[] memory apiData = new WeatherOracle.ApiData[](2);
+        apiData[0] = WeatherOracle.ApiData("open-meteo", 1000, uint40(block.timestamp));
+        apiData[1] = WeatherOracle.ApiData("nasa-power", 950, uint40(block.timestamp));
+
         vm.prank(agent);
-        oracle.recordEvent(LAT, LNG, WeatherOracle.EventType.DROUGHT, 1000, uint40(block.timestamp), "open-meteo");
+        oracle.recordEvent(LAT, LNG, WeatherOracle.EventType.DROUGHT, apiData, uint40(block.timestamp));
 
         // Only Nairobi policy gets claimed
         vm.prank(agent);
@@ -129,12 +143,14 @@ contract IntegrationTest is Test {
         vault.triggerPayout(policy1);
 
         // Farmer1 received payout, Farmer2 did not
-        assertGt(cUSD.balanceOf(farmer1), 20e18); // started with 50, paid premium, received 20
-        assertLt(cUSD.balanceOf(farmer2), 50e18); // only paid premium, no payout
+        uint256 expectedPayout1 = vault.calculatePayout(policy1);
+        assertEq(cUSD.balanceOf(farmer1), 50e18 - registry.calculatePremium(coverage) + expectedPayout1);
+        assertEq(cUSD.balanceOf(farmer2), 50e18 - registry.calculatePremium(coverage));
         assertFalse(vault.isPayoutExecuted(policy2));
     }
 
     function test_BatchPayoutForRegionWideEvent() public {
+        // Test batch payout for multiple policies affected by a region-wide event
         uint256 coverage = 10e18;
         uint40  endDate  = uint40(block.timestamp + 60 days);
 
@@ -156,6 +172,14 @@ contract IntegrationTest is Test {
             vm.stopPrank();
         }
 
+        // Agent records a region-wide drought event
+        WeatherOracle.ApiData[] memory apiData = new WeatherOracle.ApiData[](2);
+        apiData[0] = WeatherOracle.ApiData("open-meteo", 800, uint40(block.timestamp));
+        apiData[1] = WeatherOracle.ApiData("nasa-power", 750, uint40(block.timestamp));
+
+        vm.prank(agent);
+        oracle.recordEvent(LAT, LNG, WeatherOracle.EventType.DROUGHT, apiData, uint40(block.timestamp));
+
         // Agent claims all three
         for (uint256 i = 0; i < 3; i++) {
             vm.prank(agent);
@@ -166,10 +190,72 @@ contract IntegrationTest is Test {
         vm.prank(agent);
         vault.batchPayout(ids);
 
-        // All three received payouts
+        // All three received payouts proportional to premiums
         for (uint256 i = 0; i < 3; i++) {
             assertTrue(vault.isPayoutExecuted(ids[i]));
-            assertGe(cUSD.balanceOf(farmers[i]), coverage);
+            uint256 expectedPayout = vault.calculatePayout(ids[i]);
+            assertEq(cUSD.balanceOf(farmers[i]), 10e18 - registry.calculatePremium(coverage) + expectedPayout);
         }
+    }
+
+    function test_GasUsageComparison() public {
+        uint256 coverage = 10e18;
+        uint40 endDate = uint40(block.timestamp + 60 days);
+
+        // Create 5 policies
+        bytes32[] memory ids = new bytes32[](5);
+        for (uint256 i = 0; i < 5; i++) {
+            address farmer = makeAddr(string(abi.encodePacked("gasFarmer", i)));
+            cUSD.mint(farmer, 10e18);
+            uint256 premium = registry.calculatePremium(coverage);
+
+            vm.startPrank(farmer);
+            cUSD.approve(address(registry), premium);
+            ids[i] = registry.registerPolicy(LAT, LNG, PolicyRegistry.CoverageType.DROUGHT, coverage, endDate);
+            vm.stopPrank();
+        }
+
+        // Mark all as claimed
+        for (uint256 i = 0; i < 5; i++) {
+            vm.prank(agent);
+            registry.markClaimed(ids[i]);
+        }
+
+        // Measure gas for individual payouts
+        uint256 gasStart = gasleft();
+        for (uint256 i = 0; i < 5; i++) {
+            vm.prank(agent);
+            vault.triggerPayout(ids[i]);
+        }
+        uint256 individualGas = gasStart - gasleft();
+
+        // Reset state for batch test
+        vm.prank(agent);
+        oracle.recordEvent(LAT, LNG, WeatherOracle.EventType.DROUGHT, 1000, uint40(block.timestamp), "open-meteo");
+
+        // Create 5 more policies for batch test
+        bytes32[] memory batchIds = new bytes32[](5);
+        for (uint256 i = 0; i < 5; i++) {
+            address farmer = makeAddr(string(abi.encodePacked("batchFarmer", i)));
+            cUSD.mint(farmer, 10e18);
+            uint256 premium = registry.calculatePremium(coverage);
+
+            vm.startPrank(farmer);
+            cUSD.approve(address(registry), premium);
+            batchIds[i] = registry.registerPolicy(LAT, LNG, PolicyRegistry.CoverageType.DROUGHT, coverage, endDate);
+            vm.stopPrank();
+
+            vm.prank(agent);
+            registry.markClaimed(batchIds[i]);
+        }
+
+        // Measure gas for batch payout
+        gasStart = gasleft();
+        vm.prank(agent);
+        vault.batchPayout(batchIds);
+        uint256 batchGas = gasStart - gasleft();
+
+        // Batch should be more gas efficient
+        assertLt(batchGas, individualGas, "Batch payout should use less gas than individual payouts");
     }
 }

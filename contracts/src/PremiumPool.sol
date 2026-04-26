@@ -7,6 +7,7 @@ import {IERC20} from "forge-std/interfaces/IERC20.sol";
 /// @notice Holds all collected premiums and protocol reserve.
 ///         Only the PayoutVault can withdraw funds for payouts.
 ///         The owner can deposit reserve capital.
+/// @dev Gas optimizations: cached balance checks, batch operations, unchecked loops
 contract PremiumPool {
     IERC20 public immutable cUSD;
     address public immutable owner;
@@ -54,10 +55,29 @@ contract PremiumPool {
         emit Deposited(msg.sender, amount);
     }
 
+    /// @notice Batch deposit multiple amounts (gas optimized).
+    function batchDeposit(uint256[] calldata amounts) external {
+        uint256 totalAmount;
+        uint256 length = amounts.length;
+
+        for (uint256 i = 0; i < length; ) {
+            uint256 amount = amounts[i];
+            if (amount == 0) revert ZeroAmount();
+            totalAmount += amount;
+            unchecked { i++; }
+        }
+
+        if (totalAmount == 0) revert ZeroAmount();
+        totalDeposited += totalAmount;
+        cUSD.transferFrom(msg.sender, address(this), totalAmount);
+        emit Deposited(msg.sender, totalAmount);
+    }
+
     /// @notice Called by PayoutVault to withdraw funds for a payout.
     function withdrawForPayout(uint256 amount, address recipient) external onlyVault {
         if (amount == 0) revert ZeroAmount();
-        if (cUSD.balanceOf(address(this)) < amount) revert InsufficientBalance();
+        uint256 balance = cUSD.balanceOf(address(this));
+        if (balance < amount) revert InsufficientBalance();
         totalPaidOut += amount;
         cUSD.transfer(recipient, amount);
         emit FundsWithdrawn(recipient, amount);
