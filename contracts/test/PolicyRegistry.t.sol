@@ -367,7 +367,7 @@ contract PolicyRegistryTest is Test {
         cUSD.approve(address(registry), premium);
         vm.expectRevert(PolicyRegistry.PolicyAlreadyExists.selector); // Should revert due to duplicate
         registry.registerPolicy(LAT, LNG, PolicyRegistry.CoverageType.DROUGHT, COVERAGE, endDate);
-        vm.stopPrank();
+        vm.stopPrank(); // End the prank context after failed registration
 
         // Ensure only one policy exists
         // The second registration should have failed
