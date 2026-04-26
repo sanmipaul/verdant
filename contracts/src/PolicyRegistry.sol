@@ -119,6 +119,7 @@ contract PolicyRegistry {
     ) internal view returns (bool) {
         bytes32[] memory policyIds = farmerPolicies[farmer];
         // Loop through all policies of the farmer
+        // This is O(n) where n is number of policies per farmer, acceptable for typical use
         for (uint256 i = 0; i < policyIds.length; i++) {
             Policy memory p = policies[policyIds[i]];
             // Check if policy is active and matches the location and coverage type
