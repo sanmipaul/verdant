@@ -122,7 +122,7 @@ contract PolicyRegistry {
             Policy memory p = policies[policyIds[i]];
             // Check if policy is active and matches the location and coverage type
             if (p.status == PolicyStatus.ACTIVE && p.lat == lat && p.lng == lng && p.coverageType == coverageType) {
-                return true;
+                return true; // Found a matching active policy
             }
         }
         return false;
