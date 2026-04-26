@@ -47,11 +47,11 @@ contract PolicyRegistry {
     // farmer => policyIds
     mapping(address => bytes32[]) public farmerPolicies;
 
-    // Minimum premium: 0.50 cUSD (18 decimals)
-    uint256 public constant MIN_PREMIUM = 0.5e18;
+    // Minimum premium: 0.00001 cUSD (matches Prova bounty scale)
+    uint256 public constant MIN_PREMIUM = 1e13;
 
-    // Maximum coverage per policy: 50 cUSD
-    uint256 public constant MAX_COVERAGE = 50e18;
+    // Maximum coverage per policy: 0.001 cUSD
+    uint256 public constant MAX_COVERAGE = 1e15;
 
     event PolicyRegistered(
         bytes32 indexed policyId,
