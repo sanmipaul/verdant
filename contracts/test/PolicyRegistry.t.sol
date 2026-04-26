@@ -356,6 +356,7 @@ contract PolicyRegistryTest is Test {
 
     function test_PreventDuplicateActivePolicies() public {
         // Test that registering a second policy with same location and coverage type fails
+        // This ensures no duplicate active policies for the same farmer, location, and type
         bytes32 policyId1 = _registerPolicy();
 
         // Try to register second policy with same location and type
