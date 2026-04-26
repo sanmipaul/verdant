@@ -127,6 +127,16 @@ contract PolicyRegistry {
         }
         return false; // No matching active policy found
     }
+
+    /// @notice Public view to check if farmer has an active policy for location and type.
+    function hasActivePolicyForLocation(
+        address farmer,
+        int256 lat,
+        int256 lng,
+        CoverageType coverageType
+    ) external view returns (bool) {
+        return _hasActivePolicyForLocation(farmer, lat, lng, coverageType);
+    }
     /// @notice Set the authorized Cloudflare agent wallet.
     function setAuthorizedAgent(address _agent) external onlyOwner {
         authorizedAgent = _agent;
