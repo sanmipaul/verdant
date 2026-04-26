@@ -82,15 +82,7 @@ contract PolicyRegistry {
     error ContractPaused();
     error DurationTooShort();
 
-    modifier onlyOwner() {
-        if (msg.sender != owner) revert Unauthorized();
-        _;
-    }
 
-    modifier onlyAgent() {
-        if (msg.sender != authorizedAgent) revert Unauthorized();
-        _;
-    }
 
     constructor(address _cUSD, address _premiumPool, address _owner) {
         cUSD = IERC20(_cUSD);
