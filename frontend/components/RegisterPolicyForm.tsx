@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useWriteContract, useReadContract } from "wagmi";
-import { parseUnits } from "viem";
+import { parseUnits, formatUnits } from "viem";
 import {
   POLICY_REGISTRY_ADDRESS,
   POLICY_REGISTRY_ABI,
@@ -23,7 +23,8 @@ export function RegisterPolicyForm({ onSuccess }: Props) {
   const [latDeg, setLatDeg] = useState("");
   const [lngDeg, setLngDeg] = useState("");
   const [coverageType, setCoverageType] = useState(0);
-  const [coverageAmountCUSD, setCoverageAmountCUSD] = useState("10");
+  // MAX_COVERAGE in contract = 1e15 wei = 0.001 cUSD
+  const [coverageAmountCUSD, setCoverageAmountCUSD] = useState("0.001");
   const [durationMonths, setDurationMonths] = useState(3);
   const [step, setStep] = useState<Step>("idle");
   const [error, setError] = useState("");
@@ -60,8 +61,7 @@ export function RegisterPolicyForm({ onSuccess }: Props) {
 
     const latScaled = BigInt(Math.round(parseFloat(latDeg) * 1e6));
     const lngScaled = BigInt(Math.round(parseFloat(lngDeg) * 1e6));
-    const endDate =
-      Math.floor(Date.now() / 1000) + durationMonths * 30 * 24 * 60 * 60;
+    const endDate = Math.floor(Date.now() / 1000) + durationMonths * 30 * 24 * 60 * 60;
 
     try {
       setStep("approving");
@@ -175,7 +175,7 @@ export function RegisterPolicyForm({ onSuccess }: Props) {
           Coverage Amount
         </label>
         <div className="flex gap-2">
-          {["10", "25", "50"].map((amount) => (
+          {["0.0001", "0.0005", "0.001"].map((amount) => (
             <button
               key={amount}
               type="button"
@@ -223,9 +223,9 @@ export function RegisterPolicyForm({ onSuccess }: Props) {
             <span className="font-medium">{coverageAmountCUSD} cUSD</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-gray-500">Monthly premium</span>
+            <span className="text-gray-500">Premium</span>
             <span className="font-semibold text-verdant-700">
-              {Number(premiumWei) / 1e18} cUSD
+              {formatUnits(premiumWei, 18)} cUSD
             </span>
           </div>
           <div className="flex justify-between">
