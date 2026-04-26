@@ -82,7 +82,25 @@ contract PolicyRegistry {
     error ContractPaused();
     error DurationTooShort();
 
+    modifier onlyOwner() {
+        if (msg.sender != owner) revert Unauthorized();
+        _;
+    }
 
+    modifier onlyAgent() {
+        if (msg.sender != authorizedAgent) revert Unauthorized();
+        _;
+    }
+
+    modifier whenNotPaused() {
+        if (_paused) revert ContractPaused();
+        _;
+    }
+
+    modifier whenPaused() {
+        if (!_paused) revert ContractPaused();
+        _;
+    }
 
     constructor(address _cUSD, address _premiumPool, address _owner) {
         cUSD = IERC20(_cUSD);
@@ -90,8 +108,35 @@ contract PolicyRegistry {
         owner = _owner;
     }
 
+    /// @notice Check if farmer has an active policy for the given location and coverage type.
+    function _hasActivePolicyForLocation(
+        address farmer,
+        int256 lat,
+        int256 lng,
+        CoverageType coverageType
+    ) internal view returns (bool) {
     /// @notice Set the authorized Cloudflare agent wallet.
+    function setAuthorizedAgent(address _agent) external onlyOwner {
+        authorizedAgent = _agent;
+        emit AgentUpdated(_agent);
+    }
 
+    /// @notice Pause contract - only owner, disables registrations/claims/expiry
+    function pause() external onlyOwner whenNotPaused {
+        _paused = true;
+        emit Paused(msg.sender);
+    }
+
+    /// @notice Unpause contract - only owner, re-enables registrations/claims/expiry
+    function unpause() external onlyOwner whenPaused {
+        _paused = false;
+        emit Unpaused(msg.sender);
+    }
+
+    /// @notice Returns true if contract is paused
+    function paused() public view returns (bool) {
+        return _paused;
+    }
 
     /// @notice Register a new insurance policy.
     /// @param lat      GPS latitude × 1e6 (e.g. 1.2921° = 1292100)
@@ -204,55 +249,7 @@ contract PolicyRegistry {
         return farmerPolicies[farmer];
     }
 
-    /// @notice Get active (non-expired) policy IDs for a farmer.
-    /// @dev Filters out expired policies dynamically. Returns only ACTIVE policies not past endDate.
-    function getActiveFarmerPolicies(address farmer) external view returns (bytes32[] memory) {
-        bytes32[] memory all = farmerPolicies[farmer];
-        uint256 count = 0;
-        for (uint256 i = 0; i < all.length; i++) {
-            if (!this.isPolicyExpired(all[i])) {
-                count++;
-            }
-        }
-        bytes32[] memory active = new bytes32[](count);
-        uint256 j = 0;
-        for (uint256 i = 0; i < all.length; i++) {
-            if (!this.isPolicyExpired(all[i])) {
-                active[j] = all[i];
-                j++;
-            }
-        }
-        return active;
-    }
 
-    /// @notice Get a policy by ID.
-    function getPolicy(bytes32 policyId) external view returns (Policy memory) {
-        return policies[policyId];
-    }
-
-    /// @notice Check if a policy is expired.
-    /// @dev Considers both explicit EXPIRED status and time-based expiration.
-    function isPolicyExpired(bytes32 policyId) external view returns (bool) {
-        Policy memory p = policies[policyId];
-        return p.status == PolicyStatus.EXPIRED || (p.status == PolicyStatus.ACTIVE && block.timestamp > p.endDate);
-    }
-
-    /// @notice Calculate premium for a given coverage amount.
-    ///         Premium = 1% of coverage amount, minimum 0.50 cUSD.
-    function _calculatePremium(uint256 coverageAmount) internal pure returns (uint256) {
-        uint256 calculated;
-        assembly {
-            calculated := div(coverageAmount, 100)
-        }
-        return calculated < MIN_PREMIUM ? MIN_PREMIUM : calculated;
-    }
-
-    /// @notice Public view for premium calculation.
-    function calculatePremium(uint256 coverageAmount) external pure returns (uint256) {
-        return _calculatePremium(coverageAmount);
-    }
-
-    /// @notice Get all active policy IDs for a farmer (gas optimized).
     function getActiveFarmerPolicies(address farmer) external view returns (bytes32[] memory) {
         bytes32[] memory allPolicies = farmerPolicies[farmer];
         uint256 length = allPolicies.length;
