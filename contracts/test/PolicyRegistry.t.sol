@@ -376,6 +376,7 @@ contract PolicyRegistryTest is Test {
 
     function test_AllowDifferentCoverageType() public {
         // Test that different coverage types are allowed for same location
+        // This verifies that only same type is prevented, not different types
         _registerPolicy();
 
         // Register second with different type, same location
