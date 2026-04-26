@@ -52,6 +52,12 @@ contract PolicyRegistry {
 
     // Maximum coverage per policy: 0.001 cUSD
     uint256 public constant MAX_COVERAGE = 1e15;
+    
+    // Minimum policy duration: 1 day
+    uint256 public constant MIN_DURATION = 1 days;
+    
+    // Pause state
+    bool private _paused;
 
     event PolicyRegistered(
         bytes32 indexed policyId,
@@ -63,6 +69,8 @@ contract PolicyRegistry {
     event PolicyClaimed(bytes32 indexed policyId, address indexed farmer, uint256 payout);
     event PolicyExpired(bytes32 indexed policyId);
     event AgentUpdated(address indexed agent);
+    event Paused(address account);
+    event Unpaused(address account);
 
     error Unauthorized();
     error InvalidPremium();
@@ -71,6 +79,8 @@ contract PolicyRegistry {
     error PolicyNotActive();
     error PolicyAlreadyExists();
     error TransferFailed();
+    error ContractPaused();
+    error DurationTooShort();
 
     modifier onlyOwner() {
         if (msg.sender != owner) revert Unauthorized();
