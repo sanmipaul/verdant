@@ -140,7 +140,7 @@ contract PolicyRegistry {
         int256 lng,
         CoverageType coverageType
     ) external view returns (bool) {
-        return _hasActivePolicyForLocation(farmer, lat, lng, coverageType);
+        return _hasActivePolicyForLocation(farmer, lat, lng, coverageType); // Delegate to internal function
     }
     /// @notice Set the authorized Cloudflare agent wallet.
     function setAuthorizedAgent(address _agent) external onlyOwner {
