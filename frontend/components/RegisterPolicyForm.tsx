@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { useWriteContract, useReadContract } from "wagmi";
+import { useWriteContract, useReadContract, useChainId, useSwitchChain } from "wagmi";
 import { parseUnits, formatUnits } from "viem";
+import { celo } from "viem/chains";
 import {
   POLICY_REGISTRY_ADDRESS,
   POLICY_REGISTRY_ABI,
@@ -29,13 +30,21 @@ export function RegisterPolicyForm({ onSuccess }: Props) {
   const [step, setStep] = useState<Step>("idle");
   const [error, setError] = useState("");
 
+  const chainId = useChainId();
+  const { switchChain, isPending: isSwitching } = useSwitchChain();
+  const isWrongChain = chainId !== celo.id;
+
   const coverageAmountWei = parseUnits(coverageAmountCUSD || "0", 18);
 
-  const { data: premiumWei } = useReadContract({
+  const {
+    data: premiumWei,
+    isLoading: isPremiumLoading,
+  } = useReadContract({
     address: POLICY_REGISTRY_ADDRESS,
     abi: POLICY_REGISTRY_ABI,
     functionName: "calculatePremium",
     args: [coverageAmountWei],
+    chainId: celo.id,
     query: {
       enabled: coverageAmountWei > 0n && !!POLICY_REGISTRY_ADDRESS,
     },
@@ -49,15 +58,28 @@ export function RegisterPolicyForm({ onSuccess }: Props) {
       (pos) => {
         setLatDeg(pos.coords.latitude.toFixed(6));
         setLngDeg(pos.coords.longitude.toFixed(6));
+        setError("");
       },
-      () => setError("Location access denied.")
+      () => setError("Location access denied. Enter coordinates manually.")
     );
   }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!premiumWei || !latDeg || !lngDeg) return;
     setError("");
+
+    if (isWrongChain) {
+      setError("Please switch to Celo Mainnet first.");
+      return;
+    }
+    if (!premiumWei) {
+      setError("Premium not loaded yet. Wait a moment and try again.");
+      return;
+    }
+    if (!latDeg || !lngDeg) {
+      setError("Enter your farm coordinates.");
+      return;
+    }
 
     const latScaled = BigInt(Math.round(parseFloat(latDeg) * 1e6));
     const lngScaled = BigInt(Math.round(parseFloat(lngDeg) * 1e6));
@@ -70,6 +92,7 @@ export function RegisterPolicyForm({ onSuccess }: Props) {
         abi: CUSD_ABI,
         functionName: "approve",
         args: [POLICY_REGISTRY_ADDRESS, premiumWei],
+        chainId: celo.id,
       });
 
       setStep("registering");
@@ -78,12 +101,14 @@ export function RegisterPolicyForm({ onSuccess }: Props) {
         abi: POLICY_REGISTRY_ABI,
         functionName: "registerPolicy",
         args: [latScaled, lngScaled, coverageType, coverageAmountWei, endDate],
+        chainId: celo.id,
       });
 
       setStep("done");
       setTimeout(onSuccess, 1500);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Transaction failed.");
+      const msg = err instanceof Error ? err.message : "Transaction failed.";
+      setError(msg.length > 120 ? msg.slice(0, 120) + "…" : msg);
       setStep("idle");
     }
   }
@@ -103,6 +128,27 @@ export function RegisterPolicyForm({ onSuccess }: Props) {
   }
 
   const isSubmitting = step === "approving" || step === "registering";
+
+  // Wrong chain banner
+  if (isWrongChain) {
+    return (
+      <div className="space-y-5">
+        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5 text-center">
+          <p className="font-semibold text-amber-800 mb-1">Wrong Network</p>
+          <p className="text-sm text-amber-700 mb-4">
+            Verdant runs on Celo Mainnet. You are currently on chain {chainId}.
+          </p>
+          <button
+            onClick={() => switchChain({ chainId: celo.id })}
+            disabled={isSwitching}
+            className="bg-verdant-600 hover:bg-verdant-700 disabled:opacity-50 text-white font-semibold px-6 py-2.5 rounded-xl text-sm transition-colors"
+          >
+            {isSwitching ? "Switching…" : "Switch to Celo Mainnet"}
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
@@ -216,7 +262,12 @@ export function RegisterPolicyForm({ onSuccess }: Props) {
       </div>
 
       {/* Summary */}
-      {premiumWei !== undefined && (
+      {isPremiumLoading && (
+        <div className="bg-gray-50 rounded-2xl p-4 text-sm text-gray-400 text-center animate-pulse">
+          Loading premium…
+        </div>
+      )}
+      {!isPremiumLoading && premiumWei !== undefined && (
         <div className="bg-gray-50 rounded-2xl p-4 space-y-1.5 text-sm">
           <div className="flex justify-between">
             <span className="text-gray-500">Coverage payout</span>
@@ -234,6 +285,11 @@ export function RegisterPolicyForm({ onSuccess }: Props) {
           </div>
         </div>
       )}
+      {!isPremiumLoading && premiumWei === undefined && POLICY_REGISTRY_ADDRESS && (
+        <p className="text-xs text-amber-600 bg-amber-50 rounded-xl px-3 py-2">
+          Could not load premium from contract. Check your network connection.
+        </p>
+      )}
 
       {error && (
         <p className="text-red-500 text-xs bg-red-50 rounded-xl px-3 py-2">
@@ -243,13 +299,15 @@ export function RegisterPolicyForm({ onSuccess }: Props) {
 
       <button
         type="submit"
-        disabled={isSubmitting || !premiumWei}
+        disabled={isSubmitting || isPremiumLoading}
         className="w-full bg-verdant-600 hover:bg-verdant-700 disabled:opacity-50 text-white font-semibold py-3.5 rounded-2xl text-sm transition-colors"
       >
         {step === "approving"
-          ? "Approving cUSD spend..."
+          ? "Approving cUSD spend…"
           : step === "registering"
-          ? "Registering policy..."
+          ? "Registering policy…"
+          : isPremiumLoading
+          ? "Loading…"
           : "Activate Coverage"}
       </button>
     </form>
