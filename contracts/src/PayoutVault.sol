@@ -7,7 +7,7 @@ import {PremiumPool} from "./PremiumPool.sol";
 /// @title PayoutVault
 /// @notice Receives trigger signals from the authorized Cloudflare agent and
 ///         executes cUSD payouts by pulling funds from PremiumPool.
-/// @dev Fixed: Payout amounts now calculated proportionally to premium paid.
+/// @dev Payout amounts calculated proportionally to premium paid.
 contract PayoutVault {
     PolicyRegistry public immutable registry;
     PremiumPool public immutable pool;
@@ -81,18 +81,18 @@ contract PayoutVault {
                 PolicyRegistry.Policy memory p = registry.getPolicy(policyId);
                 if (p.status == PolicyRegistry.PolicyStatus.CLAIMED) {
                     payoutExecuted[policyId] = true;
-                    totalAmount += p.coverageAmount;
+                    // Calculate payout proportional to premium paid relative to minimum premium
+                    uint256 amount = p.premiumPaid == 0 ? 0 : p.coverageAmount * p.premiumPaid / MIN_PREMIUM;
+                    totalAmount += amount;
                     count++;
 
-            payoutExecuted[policyId] = true;
-            // Calculate payout proportional to premium paid relative to minimum premium
-            uint256 amount = p.premiumPaid == 0 ? 0 : p.coverageAmount * p.premiumPaid / MIN_PREMIUM;
-            totalAmount += amount;
-            count++;
+                    pool.withdrawForPayout(amount, p.farmer);
 
-            pool.withdrawForPayout(amount, p.farmer);
+                    emit PayoutExecuted(policyId, p.farmer, amount);
+                }
+            }
 
-            emit PayoutExecuted(policyId, p.farmer, amount);
+            unchecked { i++; }
         }
 
         if (count > 0) {
