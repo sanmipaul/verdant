@@ -61,8 +61,8 @@ Weather APIs: Open-Meteo (primary) · NASA POWER (verification)
 
 | Contract | Purpose |
 |---|---|
-| `PolicyRegistry` | Stores all active policies with GPS, trigger conditions, and status |
-| `PremiumPool` | Holds collected premiums and protocol reserve funds |
+| `PolicyRegistry` | Stores all active policies with GPS, trigger conditions, and status. Supports pausable emergency stop. |
+| `PremiumPool` | Holds collected premiums and protocol reserve funds. Protected by reentrancy guard. |
 | `PayoutVault` | Receives trigger signals from the authorized agent and executes cUSD payouts |
 | `WeatherOracle` | Immutable on-chain record of all weather events for auditability |
 
